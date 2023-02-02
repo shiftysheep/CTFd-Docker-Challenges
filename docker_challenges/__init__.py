@@ -11,11 +11,12 @@ from CTFd.utils.config import is_teams_mode
 from CTFd.utils.decorators import admins_only
 
 from .api import (active_docker_namespace, container_namespace,
-                  docker_namespace, kill_container)
+                  docker_namespace, kill_container, secret_namespace)
 from .functions.general import get_repositories
 from .models.container import DockerChallengeType
 from .models.models import (DockerChallengeTracker, DockerConfig,
                             DockerConfigForm)
+from .models.service import DockerServiceChallengeType
 
 
 def define_docker_admin(app):
@@ -129,6 +130,7 @@ def define_docker_status(app):
 def load(app):
     app.db.create_all()
     CHALLENGE_CLASSES['docker'] = DockerChallengeType
+    CHALLENGE_CLASSES['docker_service'] = DockerServiceChallengeType
     register_plugin_assets_directory(app, base_path='/plugins/docker_challenges/assets')
     define_docker_admin(app)
     define_docker_status(app)
@@ -136,3 +138,4 @@ def load(app):
     CTFd_API_v1.add_namespace(container_namespace, '/container')
     CTFd_API_v1.add_namespace(active_docker_namespace, '/docker_status')
     CTFd_API_v1.add_namespace(kill_container, '/nuke')
+    CTFd_API_v1.add_namespace(secret_namespace, '/secret')

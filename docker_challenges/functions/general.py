@@ -52,6 +52,20 @@ def get_repositories(docker, tags=False, repos=False):
                     result.append(i['RepoTags'][0])
     return list(set(result))
 
+def get_secrets(docker):
+    r = do_request(docker, '/secrets')
+    tmplist = list()
+    for secret in r.json():
+        tmpdict = {}
+        tmpdict['ID'] = secret['ID']
+        tmpdict['Name'] = secret['Spec']['Name']
+        tmplist.append(tmpdict)
+    return tmplist
+
+def delete_secret(docker:DockerConfig, id: str):
+    r = do_request(docker, f'/secrets/{id}', method='DELETE')
+    return r.ok
+
 def get_unavailable_ports(docker):
     r = do_request(docker, '/containers/json?all=1')
     result = list()

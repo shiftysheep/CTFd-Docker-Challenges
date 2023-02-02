@@ -11,12 +11,14 @@ from CTFd.utils.decorators import admins_only, authed_only
 from CTFd.utils.user import get_current_team, get_current_user
 
 from ..functions.containers import create_container, delete_container
-from ..functions.general import get_repositories, get_unavailable_ports
+from ..functions.general import (get_repositories, get_secrets,
+                                 get_unavailable_ports)
 from ..models.models import DockerChallengeTracker, DockerConfig
 
 active_docker_namespace = Namespace("docker", description='Endpoint to retrieve User Docker Image Status')
 container_namespace = Namespace("container", description='Endpoint to interact with containers')
 docker_namespace = Namespace("docker", description='Endpoint to retrieve dockerstuff')
+secret_namespace = Namespace("secret", description='Endpoint to retrieve dockerstuff')
 kill_container = Namespace("nuke", description='Endpoint to nuke containers')
 
 
@@ -152,6 +154,35 @@ class DockerAPI(Resource):
             data = list()
             for i in images:
                 data.append({'name': i})
+            return {
+                'success': True,
+                'data': data
+            }
+        else:
+            return {
+                       'success': False,
+                       'data': [
+                           {
+                               'name': 'Error in Docker Config!'
+                           }
+                       ]
+                   }, 400
+
+@secret_namespace.route("", methods=['POST', 'GET'])
+class SecretAPI(Resource):
+    """
+	This is for creating Docker Challenges. The purpose of this API is to populate the Docker Secret Select form
+	object in the Challenge Creation Screen.
+	"""
+
+    @admins_only
+    def get(self):
+        docker = DockerConfig.query.filter_by(id=1).first()
+        secrets = get_secrets(docker)
+        if secrets:
+            data = list()
+            for i in secrets:
+                data.append({'name': i['Name'],'id': i['ID']})
             return {
                 'success': True,
                 'data': data
