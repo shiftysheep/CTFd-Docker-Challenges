@@ -9,7 +9,8 @@ from CTFd.utils.uploads import delete_file
 from CTFd.utils.user import get_ip
 
 from ..functions.containers import delete_container
-from ..models.models import DockerChallengeTracker, DockerConfig
+from ..models.models import (DockerChallenge, DockerChallengeTracker,
+                             DockerConfig)
 
 
 class DockerChallengeType(BaseChallenge):
@@ -104,6 +105,7 @@ class DockerChallengeType(BaseChallenge):
 		:return:
 		"""
         data = request.form or request.get_json()
+        data['docker_type'] = 'container'
         challenge = DockerChallenge(**data)
         db.session.add(challenge)
         db.session.commit()
@@ -189,9 +191,3 @@ class DockerChallengeType(BaseChallenge):
         db.session.add(wrong)
         db.session.commit()
         #db.session.close()
-
-
-class DockerChallenge(Challenges):
-    __mapper_args__ = {'polymorphic_identity': 'docker'}
-    id = db.Column(None, db.ForeignKey('challenges.id'), primary_key=True)
-    docker_image = db.Column(db.String(128), index=True)

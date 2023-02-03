@@ -8,8 +8,9 @@ from CTFd.utils.config import is_teams_mode
 from CTFd.utils.uploads import delete_file
 from CTFd.utils.user import get_ip
 
-from ..functions.containers import delete_container
-from ..models.models import DockerChallengeTracker, DockerConfig
+from ..functions.services import delete_service
+from ..models.models import (DockerChallengeTracker, DockerConfig,
+                             DockerServiceChallenge)
 
 
 class DockerServiceChallengeType(BaseChallenge):
@@ -106,6 +107,7 @@ class DockerServiceChallengeType(BaseChallenge):
 		"""
         data = request.form or request.get_json()
         data['docker_secrets'] = data['docker_secrets_array']
+        data['docker_type'] = 'service'
         del data['docker_secrets_array']
         challenge = DockerServiceChallenge(**data)
         db.session.add(challenge)
@@ -154,7 +156,7 @@ class DockerServiceChallengeType(BaseChallenge):
             else:
                 docker_containers = DockerChallengeTracker.query.filter_by(
                     docker_image=challenge.docker_image).filter_by(user_id=user.id).first()
-            delete_container(docker, docker_containers.instance_id)
+            delete_service(docker, docker_containers.instance_id)
             DockerChallengeTracker.query.filter_by(instance_id=docker_containers.instance_id).delete()
         except:
             pass
@@ -192,10 +194,3 @@ class DockerServiceChallengeType(BaseChallenge):
         db.session.add(wrong)
         db.session.commit()
         #db.session.close()
-
-
-class DockerServiceChallenge(Challenges):
-    __mapper_args__ = {'polymorphic_identity': 'docker_service'}
-    id = db.Column(None, db.ForeignKey('challenges.id'), primary_key=True)
-    docker_image = db.Column(db.String(128), index=True)
-    docker_secrets = db.Column(db.String(4096))

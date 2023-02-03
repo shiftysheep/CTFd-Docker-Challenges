@@ -14,26 +14,24 @@ def do_request(docker: DockerConfig, url: str, headers:dict=None, method:str='GE
     BASE_URL = f'{prefix}://{host}'
     if not headers:
         headers = {'Content-Type': "application/json"}
-    # try:
-    if tls:
-        if (method == 'GET'):
-            r = requests.get(url=f"{BASE_URL}{url}", cert=(docker.client_cert, docker.client_key), verify=False, headers=headers)
-        elif (method == 'POST'):
-            r = requests.post(url=f"{BASE_URL}{url}", cert=(docker.client_cert, docker.client_key), verify=False, headers=headers,data=data)
-        elif (method == 'DELETE'):
-            r = requests.delete(url=f"{BASE_URL}{url}", cert=(docker.client_cert, docker.client_key), verify=False, headers=headers)
-    else:
-        if (method == 'GET'):
-            r = requests.get(url=f"{BASE_URL}{url}", headers=headers)
-        elif (method == 'POST'):
-            r = requests.post(url=f"{BASE_URL}{url}", headers=headers,data=data)
-        elif (method == 'DELETE'):
-            r = requests.delete(url=f"{BASE_URL}{url}", headers=headers)
-    # except:
-    #     print(traceback.print_exc())
-    #     r = []
-    print(f"type of r: {type(r)}")
-    print(f"Request url was : {r.url}")
+    try:
+        if tls:
+            if (method == 'GET'):
+                r = requests.get(url=f"{BASE_URL}{url}", cert=(docker.client_cert, docker.client_key), verify=False, headers=headers)
+            elif (method == 'POST'):
+                r = requests.post(url=f"{BASE_URL}{url}", cert=(docker.client_cert, docker.client_key), verify=False, headers=headers,data=data)
+            elif (method == 'DELETE'):
+                r = requests.delete(url=f"{BASE_URL}{url}", cert=(docker.client_cert, docker.client_key), verify=False, headers=headers)
+        else:
+            if (method == 'GET'):
+                r = requests.get(url=f"{BASE_URL}{url}", headers=headers)
+            elif (method == 'POST'):
+                r = requests.post(url=f"{BASE_URL}{url}", headers=headers,data=data)
+            elif (method == 'DELETE'):
+                r = requests.delete(url=f"{BASE_URL}{url}", headers=headers)
+    except:
+        print(traceback.print_exc())
+        r = []
     return r
 
 # For the Docker Config Page. Gets the Current Repositories available on the Docker Server.

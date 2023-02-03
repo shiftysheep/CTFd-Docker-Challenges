@@ -3,7 +3,7 @@ from wtforms import (FileField, HiddenField, RadioField, SelectMultipleField,
 
 from CTFd.forms import BaseForm
 from CTFd.forms.fields import SubmitField
-from CTFd.models import db
+from CTFd.models import Challenges, db
 
 
 class DockerConfig(db.Model):
@@ -26,6 +26,7 @@ class DockerChallengeTracker(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_id = db.Column("team_id", db.String(64), index=True)
     user_id = db.Column("user_id", db.String(64), index=True)
+    challenge_id = db.Column("challenge_id", db.Integer, index=True)
     docker_image = db.Column("docker_image", db.String(64), index=True)
     timestamp = db.Column("timestamp", db.Integer, index=True)
     revert_time = db.Column("revert_time", db.Integer, index=True)
@@ -45,3 +46,16 @@ class DockerConfigForm(BaseForm):
     client_key = FileField('Client Key')
     repositories = SelectMultipleField('Repositories')
     submit = SubmitField('Submit')
+
+class DockerChallenge(Challenges):
+    __mapper_args__ = {'polymorphic_identity': 'docker'}
+    id = db.Column(None, db.ForeignKey('challenges.id'), primary_key=True)
+    docker_type = db.Column(db.String(128), index=True)
+    docker_image = db.Column(db.String(128), index=True)
+
+class DockerServiceChallenge(Challenges):
+    __mapper_args__ = {'polymorphic_identity': 'docker_service'}
+    id = db.Column(None, db.ForeignKey('challenges.id'), primary_key=True)
+    docker_type = db.Column(db.String(128), index=True)
+    docker_image = db.Column(db.String(128), index=True)
+    docker_secrets = db.Column(db.String(4096))
