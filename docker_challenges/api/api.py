@@ -59,7 +59,7 @@ class KillContainerAPI(Resource):
             if c:
                 challenge = challenges.get(c.challenge_id)
                 if challenge:
-                    delete_docker(docker=docker_config, type=challenge.docker_type, id=c.instance_id)
+                    delete_docker(docker=docker_config, type=challenge.type, id=c.instance_id)
                 else:
                     return "Challenge not found", 404
             else:
