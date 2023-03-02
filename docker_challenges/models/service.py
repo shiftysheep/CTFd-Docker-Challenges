@@ -1,5 +1,3 @@
-from flask import Blueprint
-
 from CTFd.models import (ChallengeFiles, Challenges, Fails, Flags, Hints,
                          Solves, Tags, db)
 from CTFd.plugins.challenges import BaseChallenge
@@ -7,6 +5,7 @@ from CTFd.plugins.flags import get_flag_class
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.uploads import delete_file
 from CTFd.utils.user import get_ip
+from flask import Blueprint
 
 from ..functions.services import delete_service
 from ..models.models import (DockerChallengeTracker, DockerConfig,
@@ -40,6 +39,9 @@ class DockerServiceChallengeType(BaseChallenge):
 		:return:
 		"""
         data = request.form or request.get_json()
+        data['docker_secrets'] = data['docker_secrets_array']
+        data['docker_type'] = 'service'
+        del data['docker_secrets_array']
         for attr, value in data.items():
             setattr(challenge, attr, value)
 
@@ -189,6 +191,11 @@ class DockerServiceChallengeType(BaseChallenge):
             team_id=team.id if team else None,
             challenge_id=challenge.id,
             ip=get_ip(request),
+            provided=submission,
+        )
+        db.session.add(wrong)
+        db.session.commit()
+        #db.session.close()            ip=get_ip(request),
             provided=submission,
         )
         db.session.add(wrong)
