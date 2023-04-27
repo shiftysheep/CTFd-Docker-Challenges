@@ -122,7 +122,6 @@ class DockerChallengeType(BaseChallenge):
 		:param request: The request the user submitted
 		:return: (boolean, string)
 		"""
-
         data = request.form or request.get_json()
         print(request.get_json())
         print(data)

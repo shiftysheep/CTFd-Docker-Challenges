@@ -12,7 +12,7 @@ from CTFd.utils.decorators import admins_only
 
 from .api import (active_docker_namespace, container_namespace,
                   docker_namespace, kill_container, secret_namespace)
-from .functions.general import get_repositories
+from .functions.general import get_repositories, get_docker_info
 from .models.container import DockerChallengeType
 from .models.models import (DockerChallengeTracker, DockerConfig,
                             DockerConfigForm)
@@ -85,7 +85,7 @@ def define_docker_admin(app):
             repos = list()
 
         if len(repos) == 0:
-            form.repositories.choices = [("ERROR", "Failed to Connect to Docker")]
+            form.repositories.choices = [("ERROR", "Failed to load repositories")]
         else:
             form.repositories.choices = [(d, d) for d in repos]
 
@@ -98,7 +98,9 @@ def define_docker_admin(app):
             print(traceback.print_exc())
             selected_repos = []
 
-        return render_template("docker_config.html", config=dconfig, form=form, repos=selected_repos)
+        dinfo = get_docker_info(docker)
+
+        return render_template("docker_config.html", config=dconfig, form=form, repos=selected_repos, info=dinfo)
 
     app.register_blueprint(admin_docker_config)
 
@@ -110,7 +112,6 @@ def define_docker_status(app):
     @admin_docker_status.route("/admin/docker_status", methods=["GET", "POST"])
     @admins_only
     def docker_admin():
-        # docker_config = DockerConfig.query.filter_by(id=1).first()
         docker_tracker = DockerChallengeTracker.query.all()
         for i in docker_tracker:
             if is_teams_mode():
@@ -126,11 +127,15 @@ def define_docker_status(app):
 
 def load(app):
     app.db.create_all()
+
     CHALLENGE_CLASSES['docker'] = DockerChallengeType
     CHALLENGE_CLASSES['docker_service'] = DockerServiceChallengeType
+
     register_plugin_assets_directory(app, base_path='/plugins/docker_challenges/assets')
+
     define_docker_admin(app)
     define_docker_status(app)
+
     CTFd_API_v1.add_namespace(docker_namespace, '/docker')
     CTFd_API_v1.add_namespace(container_namespace, '/container')
     CTFd_API_v1.add_namespace(active_docker_namespace, '/docker_status')

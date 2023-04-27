@@ -1,81 +1,98 @@
 import logging
-import traceback
-
 import requests
+from requests import Response
+from requests.exceptions import RequestException, Timeout
 
 from ..models.models import DockerConfig
 
 logger = logging.getLogger(__name__)
 
 
-def do_request(
-        docker: DockerConfig,
-        url: str,
-        headers: dict = None,
-        method: str = "GET",
-        data: dict = None,
-) -> requests.Response:
+def do_request(docker: DockerConfig, url: str, headers: dict = None,
+               method: str = "GET", data: dict = None) -> list | Response:
     tls = docker.tls_enabled
     prefix = "https" if tls else "http"
     host = docker.hostname
-    BASE_URL = f"{prefix}://{host}"
+    base = f"{prefix}://{host}"
+
+    # If no host set, request will fail
+    if not host:
+        return []
+
     if not headers:
         headers = {"Content-Type": "application/json"}
+
+    request_args = {
+        'url': f"{base}{url}",
+        'headers': headers,
+        'method': method
+    }
+
+    if data:
+        request_args['data'] = data
+
+    if tls:
+        request_args['cert'] = (docker.client_cert, docker.client_key)
+        request_args['verify'] = False
+
+    logging.info(f'Request to Docker: {request_args["method"]} {request_args["url"]}')
+
+    resp = []
     try:
-        if tls:
-            if method == "GET":
-                r = requests.get(
-                    url=f"{BASE_URL}{url}",
-                    cert=(docker.client_cert, docker.client_key),
-                    verify=False,
-                    headers=headers,
-                )
-            elif method == "POST":
-                r = requests.post(
-                    url=f"{BASE_URL}{url}",
-                    cert=(docker.client_cert, docker.client_key),
-                    verify=False,
-                    headers=headers,
-                    data=data,
-                )
-            elif method == "DELETE":
-                r = requests.delete(
-                    url=f"{BASE_URL}{url}",
-                    cert=(docker.client_cert, docker.client_key),
-                    verify=False,
-                    headers=headers,
-                )
-        else:
-            if method == "GET":
-                r = requests.get(url=f"{BASE_URL}{url}", headers=headers)
-            elif method == "POST":
-                r = requests.post(url=f"{BASE_URL}{url}", headers=headers, data=data)
-            elif method == "DELETE":
-                r = requests.delete(url=f"{BASE_URL}{url}", headers=headers)
-    except:
-        print(traceback.print_exc())
-        r = []
-    return r
+        resp = requests.request(**request_args)
+    except Timeout:
+        logging.error("Request timed out.")
+    except RequestException as e:
+        logging.error(f"An error occurred while making the request: {e}")
+
+    return resp
 
 
 # For the Docker Config Page. Gets the Current Repositories available on the Docker Server.
-def get_repositories(docker, tags=False, repos=False):
+def get_repositories(docker: DockerConfig, tags=False, repos=False):
     r = do_request(docker, "/images/json?all=1")
+
+    if not r:
+        return []
+
     result = list()
     for i in r.json():
-        if not i["RepoTags"] == None:
-            if not i["RepoTags"][0].split(":")[0] == "<none>":
-                if repos:
-                    if not i["RepoTags"][0].split(":")[0] in repos:
-                        continue
-                if not tags:
-                    result.append(i["RepoTags"][0].split(":")[0])
-                else:
-                    result.append(i["RepoTags"][0])
+        if not i["RepoTags"] is not None:
+            continue
+
+        if not i["RepoTags"][0].split(":")[0] != "<none>":
+            continue
+
+        if repos:
+            if not i["RepoTags"][0].split(":")[0] in repos:
+                continue
+        if not tags:
+            result.append(i["RepoTags"][0].split(":")[0])
+        else:
+            result.append(i["RepoTags"][0])
+
     return list(set(result))
 
 
-def get_secrets(docker):
+def get_docker_info(docker: DockerConfig) -> str:
+    r = do_request(docker, "/version")
+
+    if not r:
+        return 'Failed to get docker version info'
+
+    response = r.json()
+    if 'Components' not in response:
+        return 'Failed to find information required in response.'
+
+    components = response['Components']
+    output = 'Docker versions:\n'
+    for component in components:
+        output += f"{component['Name']}: {component['Version']}\n"
+
+    return output
+
+
+def get_secrets(docker: DockerConfig):
     r = do_request(docker, "/secrets")
     tmplist = list()
     for secret in r.json():

@@ -29,6 +29,9 @@
                     {% endif %}
                 </div>
                 <div class="form-group">
+                    <pre>{{ info }}</pre>
+                </div>
+                <div class="form-group">
                     <p>TLS Enabled?</p>
                     <input type="radio" name="tls_enabled" id="tls-radiobox-no" value="False" onclick="enable_file_form(!this.checked)" {% if not config.tls_enabled %}checked{% endif %} />
                     <label for="tls-radiobox-no">No</label>
