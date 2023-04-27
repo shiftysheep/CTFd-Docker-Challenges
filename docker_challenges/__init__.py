@@ -1,7 +1,8 @@
 import tempfile
 import traceback
 
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, jsonify
+from sqlalchemy.exc import InternalError
 
 from CTFd.api import CTFd_API_v1
 from CTFd.models import Teams, Users, db
@@ -12,7 +13,7 @@ from CTFd.utils.decorators import admins_only
 
 from .api import (active_docker_namespace, container_namespace,
                   docker_namespace, kill_container, secret_namespace)
-from .functions.general import get_repositories, get_docker_info
+from .functions.general import get_repositories, get_docker_info, do_request
 from .models.container import DockerChallengeType
 from .models.models import (DockerChallengeTracker, DockerConfig,
                             DockerConfigForm)
@@ -112,14 +113,19 @@ def define_docker_status(app):
     @admin_docker_status.route("/admin/docker_status", methods=["GET", "POST"])
     @admins_only
     def docker_admin():
-        docker_tracker = DockerChallengeTracker.query.all()
-        for i in docker_tracker:
-            if is_teams_mode():
-                name = Teams.query.filter_by(id=i.team_id).first()
-                i.team_id = name.name
-            else:
-                name = Users.query.filter_by(id=i.user_id).first()
-                i.user_id = name.name
+        try:
+            docker_tracker = DockerChallengeTracker.query.all()
+            for i in docker_tracker:
+                if is_teams_mode():
+                    name = Teams.query.filter_by(id=i.team_id).first()
+                    i.team_id = name.name
+                else:
+                    name = Users.query.filter_by(id=i.user_id).first()
+                    i.user_id = name.name
+        except InternalError as err:
+            print(err)
+            return render_template("admin_docker_status.html", dockers=[])
+
         return render_template("admin_docker_status.html", dockers=docker_tracker)
 
     app.register_blueprint(admin_docker_status)
