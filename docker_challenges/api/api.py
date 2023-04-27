@@ -192,13 +192,13 @@ class DockerAPI(Resource):
             }
         else:
             return {
-                       'success': False,
-                       'data': [
-                           {
-                               'name': 'Error in Docker Config!'
-                           }
-                       ]
-                   }, 400
+                'success': False,
+                'data': [
+                    {
+                        'name': 'Error in Docker Config!'
+                    }
+                ]
+            }, 400
 
 @secret_namespace.route("", methods=['POST', 'GET'])
 class SecretAPI(Resource):
@@ -219,12 +219,12 @@ class SecretAPI(Resource):
                 'success': True,
                 'data': data
             }
-        else:
-            return {
-                       'success': False,
-                       'data': [
-                           {
-                               'name': 'Error in Docker Config!'
-                           }
-                       ]
-                   }, 400
+        
+        return {
+            'success': False,
+            'data': [
+                {
+                    'name': 'Error in Docker Config!'
+                }
+            ]
+        }, 400

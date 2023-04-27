@@ -19,6 +19,25 @@ from .models.models import (DockerChallengeTracker, DockerConfig,
 from .models.service import DockerServiceChallengeType
 
 
+def __handle_file_upload(file_key, b_obj, attr_name):
+    if file_key not in request.files:
+        setattr(b_obj, attr_name, '')
+        return
+
+    try:
+        file_content = request.files[file_key].stream.read()
+        if len(file_content) != 0:
+            tmp_file = tempfile.NamedTemporaryFile(mode="wb", dir="/tmp", delete=False)
+            tmp_file.write(file_content)
+            tmp_file.seek(0)
+            setattr(b_obj, attr_name, tmp_file.name)
+            return
+    except Exception as err:
+        print(err)
+
+    setattr(b_obj, attr_name, '')
+
+
 def define_docker_admin(app):
     admin_docker_config = Blueprint('admin_docker_config', __name__, template_folder='templates',
                                     static_folder='assets')
@@ -33,51 +52,25 @@ def define_docker_admin(app):
                 b = docker
             else:
                 b = DockerConfig()
-            try:
-                ca_cert = request.files['ca_cert'].stream.read()
-            except:
-                print(traceback.print_exc())
-                ca_cert = ''
-            try:
-                client_cert = request.files['client_cert'].stream.read()
-            except:
-                print(traceback.print_exc())
-                client_cert = ''
-            try:
-                client_key = request.files['client_key'].stream.read()
-            except:
-                print(traceback.print_exc())
-                client_key = ''
-            if len(ca_cert) != 0: 
-                tmpca = tempfile.NamedTemporaryFile(mode="wb",dir="/tmp", delete=False)
-                tmpca.write(ca_cert)
-                tmpca.seek(0)
-                b.ca_cert = tmpca.name
-            if len(client_cert) != 0:
-                tmpcert = tempfile.NamedTemporaryFile(mode="wb",dir="/tmp", delete=False)
-                tmpcert.write(client_cert)
-                tmpcert.seek(0)
-                b.client_cert = tmpcert.name
-            if len(client_key) != 0: 
-                tmpkey = tempfile.NamedTemporaryFile(mode="wb",dir="/tmp", delete=False)
-                tmpkey.write(client_key)
-                tmpkey.seek(0)
-                b.client_key = tmpkey.name
+
+            __handle_file_upload('ca_cert', b, 'ca_cert')
+            __handle_file_upload('client_cert', b, 'client_cert')
+            __handle_file_upload('client_key', b, 'client_key')
+
             b.hostname = request.form['hostname']
             b.tls_enabled = request.form['tls_enabled']
-            if b.tls_enabled == "True":
-                b.tls_enabled = True
-            else:
-                b.tls_enabled = False
+            b.tls_enabled = b.tls_enabled == "True"
             if not b.tls_enabled:
                 b.ca_cert = None
                 b.client_cert = None
                 b.client_key = None
-            try:
-                b.repositories = ','.join(request.form.to_dict(flat=False)['repositories'])
-            except:
-                print(traceback.print_exc())
+
+            repositories = request.form.to_dict(flat=False).get('repositories', None)
+            if repositories:
+                b.repositories = ','.join(repositories)
+            else:
                 b.repositories = None
+            
             db.session.add(b)
             db.session.commit()
             docker = DockerConfig.query.filter_by(id=1).first()
@@ -122,9 +115,6 @@ def define_docker_status(app):
         return render_template("admin_docker_status.html", dockers=docker_tracker)
 
     app.register_blueprint(admin_docker_status)
-
-
-
 
 
 def load(app):
