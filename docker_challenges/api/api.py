@@ -226,7 +226,6 @@ class SecretAPI(Resource):
                 'success': True,
                 'data': data
             }
-        
         return {
             'success': False,
             'data': [

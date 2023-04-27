@@ -58,8 +58,11 @@ def define_docker_admin(app):
             __handle_file_upload('client_key', b, 'client_key')
 
             b.hostname = request.form['hostname']
-            b.tls_enabled = request.form['tls_enabled']
-            b.tls_enabled = b.tls_enabled == "True"
+
+            b.tls_enabled = False
+            if 'tls_enabled' in request.form:
+                b.tls_enabled = request.form['tls_enabled'] == "True"
+
             if not b.tls_enabled:
                 b.ca_cert = None
                 b.client_cert = None
@@ -70,19 +73,22 @@ def define_docker_admin(app):
                 b.repositories = ','.join(repositories)
             else:
                 b.repositories = None
-            
+
             db.session.add(b)
             db.session.commit()
             docker = DockerConfig.query.filter_by(id=1).first()
+
         try:
             repos = get_repositories(docker)
         except:
             print(traceback.print_exc())
             repos = list()
+
         if len(repos) == 0:
             form.repositories.choices = [("ERROR", "Failed to Connect to Docker")]
         else:
             form.repositories.choices = [(d, d) for d in repos]
+
         dconfig = DockerConfig.query.first()
         try:
             selected_repos = dconfig.repositories
@@ -91,6 +97,7 @@ def define_docker_admin(app):
         except:
             print(traceback.print_exc())
             selected_repos = []
+
         return render_template("docker_config.html", config=dconfig, form=form, repos=selected_repos)
 
     app.register_blueprint(admin_docker_config)
