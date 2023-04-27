@@ -23,12 +23,13 @@ docker_namespace = Namespace("docker", description='Endpoint to retrieve dockers
 secret_namespace = Namespace("secret", description='Endpoint to retrieve dockerstuff')
 kill_container = Namespace("nuke", description='Endpoint to nuke containers')
 
+
 def delete_docker(docker, type, id):
     if type == "docker_service":
-        assert(delete_service(docker, id))
+        assert (delete_service(docker, id))
 
     else:
-        assert(delete_container(docker, id))
+        assert (delete_container(docker, id))
     DockerChallengeTracker.query.filter_by(instance_id=id).delete()
     db.session.commit()
 
@@ -91,14 +92,17 @@ class ContainerAPI(Resource):
         else:
             session = get_current_user()
         for i in containers:
-            if int(session.id) == int(i.team_id if is_teams_mode() else i.user_id) and (unix_time(datetime.utcnow()) - int(i.timestamp)) >= 7200:
+            if int(session.id) == int(i.team_id if is_teams_mode() else i.user_id) and (
+                    unix_time(datetime.utcnow()) - int(i.timestamp)) >= 7200:
                 delete_docker(docker, challenge.type, i.instance_id)
                 DockerChallengeTracker.query.filter_by(instance_id=i.instance_id).delete()
                 db.session.commit()
         if is_teams_mode():
-            check = DockerChallengeTracker.query.filter_by(team_id=session.id).filter_by(docker_image=challenge.docker_image).filter_by(challenge_id=challenge.id).first()
+            check = DockerChallengeTracker.query.filter_by(team_id=session.id).filter_by(
+                docker_image=challenge.docker_image).filter_by(challenge_id=challenge.id).first()
         else:
-            check = DockerChallengeTracker.query.filter_by(user_id=session.id).filter_by(docker_image=challenge.docker_image).filter_by(challenge_id=challenge.id).first()
+            check = DockerChallengeTracker.query.filter_by(user_id=session.id).filter_by(
+                docker_image=challenge.docker_image).filter_by(challenge_id=challenge.id).first()
         # If this container is already created, we don't need another one.
         if check != None and not (unix_time(datetime.utcnow()) - int(check.timestamp)) >= 300:
             return abort(403)
@@ -106,19 +110,22 @@ class ContainerAPI(Resource):
         elif check != None:
             delete_docker(docker, challenge.type, check.instance_id)
             if is_teams_mode():
-                DockerChallengeTracker.query.filter_by(team_id=session.id).filter_by(docker_image=challenge.docker_image).filter_by(challenge_id=challenge.id).delete()
+                DockerChallengeTracker.query.filter_by(team_id=session.id).filter_by(
+                    docker_image=challenge.docker_image).filter_by(challenge_id=challenge.id).delete()
             else:
-                DockerChallengeTracker.query.filter_by(user_id=session.id).filter_by(docker_image=challenge.docker_image).filter_by(challenge_id=challenge.id).delete()
+                DockerChallengeTracker.query.filter_by(user_id=session.id).filter_by(
+                    docker_image=challenge.docker_image).filter_by(challenge_id=challenge.id).delete()
             db.session.commit()
         portsbl = get_unavailable_ports(docker)
         if challenge.docker_type == 'service':
-            instance_id, data = create_service(docker, challenge_id=challenge.id, image=challenge.docker_image, team=session.name, portbl=portsbl)
+            instance_id, data = create_service(docker, challenge_id=challenge.id, image=challenge.docker_image,
+                                               team=session.name, portbl=portsbl)
             ports_json = json.loads(data)['EndpointSpec']['Ports']
             ports = [f"{p['PublishedPort']}/{p['Protocol']}" for p in ports_json]
         else:
             instance_id, data = create_container(docker, challenge.docker_image, session.name, portsbl)
             ports_json = json.loads(data)['HostConfig']['PortBindings'].values()
-            ports = [ f"{i['HostPort']}" for p in ports_json for i in p ]
+            ports = [f"{i['HostPort']}" for p in ports_json for i in p]
         entry = DockerChallengeTracker(
             team_id=session.id if is_teams_mode() else None,
             user_id=session.id if not is_teams_mode() else None,
@@ -190,15 +197,15 @@ class DockerAPI(Resource):
                 'success': True,
                 'data': data
             }
-        else:
-            return {
-                'success': False,
-                'data': [
-                    {
-                        'name': 'Error in Docker Config!'
-                    }
-                ]
-            }, 400
+        return {
+            'success': False,
+            'data': [
+                {
+                    'name': 'Error in Docker Config!'
+                }
+            ]
+        }, 400
+
 
 @secret_namespace.route("", methods=['POST', 'GET'])
 class SecretAPI(Resource):
@@ -214,7 +221,7 @@ class SecretAPI(Resource):
         if secrets:
             data = list()
             for i in secrets:
-                data.append({'name': i['Name'],'id': i['ID']})
+                data.append({'name': i['Name'], 'id': i['ID']})
             return {
                 'success': True,
                 'data': data

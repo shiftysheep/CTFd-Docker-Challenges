@@ -9,7 +9,6 @@ def find_existing(docker, name):
     r = do_request(docker, url=f'/containers/json?all=1&filters={{"name":["{name}"]}}')
     if len(r.json()) == 1:
         return r.json()[0]['Id']
-    
 
 
 def create_container(docker, image, team, portbl):
@@ -32,7 +31,7 @@ def create_container(docker, image, team, portbl):
     data = json.dumps({"Image": image, "ExposedPorts": ports, "HostConfig": {"PortBindings": bindings}})
     r = do_request(docker, url=f"/containers/create?name={container_name}", method="POST", data=data)
     if r.status_code == 409:
-        instance_id = find_existing(docker, container_name)        
+        instance_id = find_existing(docker, container_name)
     else:
         instance_id = r.json()['Id']
     do_request(docker, url=f"/containers/{instance_id}/start", method="POST")

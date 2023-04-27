@@ -6,7 +6,7 @@ from ..functions.general import do_request, get_required_ports, get_secrets
 from ..models.models import DockerConfig, DockerServiceChallenge
 
 
-def create_service(docker:DockerConfig, challenge_id: int,image:str, team:str, portbl:list):
+def create_service(docker: DockerConfig, challenge_id: int, image: str, team: str, portbl: list):
     challenge = DockerServiceChallenge.query.filter_by(id=challenge_id).first()
     needed_ports = get_required_ports(docker, image)
     team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
@@ -42,10 +42,10 @@ def create_service(docker:DockerConfig, challenge_id: int,image:str, team:str, p
                 break
     data = json.dumps(
         {
-            "Name": service_name, 
+            "Name": service_name,
             "TaskTemplate": {
                 "ContainerSpec": {
-                    "Image": image, 
+                    "Image": image,
                     "Secrets": secrets_list
                 }
             },
@@ -60,6 +60,6 @@ def create_service(docker:DockerConfig, challenge_id: int,image:str, team:str, p
     return instance_id, data
 
 
-def delete_service(docker:DockerConfig, instance_id:str) -> bool:
+def delete_service(docker: DockerConfig, instance_id: str) -> bool:
     r = do_request(docker, f'/services/{instance_id}', method='DELETE')
     return r.ok
