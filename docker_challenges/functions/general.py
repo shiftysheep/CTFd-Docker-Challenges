@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def do_request(docker: DockerConfig, url: str, headers: dict = None,
-               method: str = "GET", data: dict = None) -> list | Response:
+               method: str = "GET", data: dict | str = None) -> list | Response:
     tls = docker.tls_enabled
     prefix = "https" if tls else "http"
     host = docker.hostname
@@ -108,21 +108,45 @@ def delete_secret(docker: DockerConfig, id: str):
     return r.ok
 
 
-def get_unavailable_ports(docker):
+def get_unavailable_ports(docker: DockerConfig):
     r = do_request(docker, "/containers/json?all=1")
+
+    if not r:
+        print('Unable to get list of ports that are unavailable (containers)!')
+        return []
+
     result = list()
     for i in r.json():
-        if not i["Ports"] == []:
-            for p in i["Ports"]:
-                if p.get("PublicPort"):
-                    result.append(p["PublicPort"])
+        if "Ports" not in i:
+            continue
+
+        if not i["Ports"]:
+            continue
+
+        for p in i["Ports"]:
+            if p.get("PublicPort", 0):
+                result.append(p["PublicPort"])
+
     r = do_request(docker, "/services?all=1")
+    if not r:
+        print('Unable to get list of ports that are unavailable (services)!')
+        return result
+
+    rj = r.json()
+    if "message" in rj:
+        if 'This node is not a swarm manager.' in rj['message']:
+            return result
+
     for i in r.json():
+        if 'Endpoint' not in i:
+            continue
+
         endpoint = i["Endpoint"]["Spec"]
         if not endpoint == {}:
             for p in endpoint["Ports"]:
                 if p.get("PublishedPort"):
                     result.append(p["PublishedPort"])
+
     return result
 
 
