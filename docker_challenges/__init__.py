@@ -48,12 +48,17 @@ def define_docker_admin(app):
     def docker_config():
         docker = DockerConfig.query.filter_by(id=1).first()
         form = DockerConfigForm()
-        if request.method == "POST":
-            if docker:
-                b = docker
-            else:
-                b = DockerConfig()
 
+        if docker:
+            b = docker
+        else:
+            print('No docker config was found, setting empty one.')
+            b = DockerConfig()
+            db.session.add(b)
+            db.session.commit()
+            docker = DockerConfig.query.filter_by(id=1).first()
+
+        if request.method == "POST":
             __handle_file_upload('ca_cert', b, 'ca_cert')
             __handle_file_upload('client_cert', b, 'client_cert')
             __handle_file_upload('client_key', b, 'client_key')
