@@ -19,7 +19,7 @@ def find_existing(docker: DockerConfig, name: str):
 def create_container(docker: DockerConfig, image: str, team, portbl: list):
     needed_ports = get_required_ports(docker, image)
     team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
-    container_name = "%s_%s" % (image.split(':')[1], team)
+    container_name = "%s_%s" % (image.replace(':', '_').replace('/', '_').replace('.', '_'), team)
     assigned_ports = dict()
 
     for i in needed_ports:
