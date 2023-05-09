@@ -25,7 +25,8 @@ def do_request(docker: DockerConfig, url: str, headers: dict = None,
     request_args = {
         'url': f"{base}{url}",
         'headers': headers,
-        'method': method
+        'method': method,
+        'timeout': (3, 20)
     }
 
     if data:
@@ -40,10 +41,12 @@ def do_request(docker: DockerConfig, url: str, headers: dict = None,
     resp = []
     try:
         resp = requests.request(**request_args)
+    except ConnectionError:
+        logging.error("Failed to establish a new connection. Connection refused.")
     except Timeout:
         logging.error("Request timed out.")
-    except RequestException as e:
-        logging.error(f"An error occurred while making the request: {e}")
+    except RequestException as err:
+        logging.error(f"An error occurred while making the request: {err}")
 
     return resp
 
