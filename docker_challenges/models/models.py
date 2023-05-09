@@ -47,11 +47,13 @@ class DockerConfigForm(BaseForm):
     repositories = SelectMultipleField('Repositories')
     submit = SubmitField('Submit')
 
+
 class DockerChallenge(Challenges):
     __mapper_args__ = {'polymorphic_identity': 'docker'}
     id = db.Column(None, db.ForeignKey('challenges.id'), primary_key=True)
     docker_type = db.Column(db.String(128), index=True)
     docker_image = db.Column(db.String(128), index=True)
+
 
 class DockerServiceChallenge(Challenges):
     __mapper_args__ = {'polymorphic_identity': 'docker_service'}

@@ -122,7 +122,6 @@ class DockerChallengeType(BaseChallenge):
 		:param request: The request the user submitted
 		:return: (boolean, string)
 		"""
-
         data = request.form or request.get_json()
         print(request.get_json())
         print(data)
@@ -166,8 +165,8 @@ class DockerChallengeType(BaseChallenge):
         )
         db.session.add(solve)
         db.session.commit()
-        # trying if this solces the detached instance error...
-        #db.session.close()
+        # trying if this solves the detached instance error...
+        # db.session.close()
 
     @staticmethod
     def fail(user, team, challenge, request):
@@ -190,4 +189,4 @@ class DockerChallengeType(BaseChallenge):
         )
         db.session.add(wrong)
         db.session.commit()
-        #db.session.close()
+        # db.session.close()
