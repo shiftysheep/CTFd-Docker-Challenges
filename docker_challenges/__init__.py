@@ -1,8 +1,7 @@
 import tempfile
 import traceback
 
-from flask import Blueprint, render_template, request, jsonify
-from sqlalchemy.exc import InternalError
+
 
 from CTFd.api import CTFd_API_v1
 from CTFd.models import Teams, Users, db
@@ -10,13 +9,14 @@ from CTFd.plugins import register_plugin_assets_directory
 from CTFd.plugins.challenges import CHALLENGE_CLASSES
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.decorators import admins_only
+from flask import Blueprint, render_template, request, jsonify
+from sqlalchemy.exc import InternalError
 
 from .api import (active_docker_namespace, container_namespace,
                   docker_namespace, kill_container, secret_namespace)
 from .functions.general import get_repositories, get_docker_info, do_request
 from .models.container import DockerChallengeType
-from .models.models import (DockerChallengeTracker, DockerConfig,
-                            DockerConfigForm)
+from .models.models import DockerChallengeTracker, DockerConfig, DockerConfigForm
 from .models.service import DockerServiceChallengeType
 
 
@@ -40,8 +40,12 @@ def __handle_file_upload(file_key, b_obj, attr_name):
 
 
 def define_docker_admin(app):
-    admin_docker_config = Blueprint('admin_docker_config', __name__, template_folder='templates',
-                                    static_folder='assets')
+    admin_docker_config = Blueprint(
+        "admin_docker_config",
+        __name__,
+        template_folder="templates",
+        static_folder="assets",
+    )
 
     @admin_docker_config.route("/admin/docker_config", methods=["GET", "POST"])
     @admins_only
@@ -112,8 +116,12 @@ def define_docker_admin(app):
 
 
 def define_docker_status(app):
-    admin_docker_status = Blueprint('admin_docker_status', __name__, template_folder='templates',
-                                    static_folder='assets')
+    admin_docker_status = Blueprint(
+        "admin_docker_status",
+        __name__,
+        template_folder="templates",
+        static_folder="assets",
+    )
 
     @admin_docker_status.route("/admin/docker_status", methods=["GET", "POST"])
     @admins_only
