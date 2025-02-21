@@ -1,0 +1,29 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Wrong Flag Submissions</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Team ID</th>
+                <th>Challenge ID</th>
+                <th>Submission Count</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in wrong_submissions %}
+            <tr>
+                <td>{{ entry.team_id }}</td>
+                <td>{{ entry.challenge_id }}</td>
+                <td>{{ entry.count }}</td>
+                <td>
+                    <a href="{{ url_for('wrong_flag_detector.delete_wrong_flag', entry_id=entry.id) }}" class="btn btn-danger btn-sm">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
