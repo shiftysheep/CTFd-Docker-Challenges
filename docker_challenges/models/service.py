@@ -51,6 +51,7 @@ class DockerServiceChallengeType(BaseChallenge):
         :return:
         """
         data = request.form or request.get_json()
+        data["protect_secrets"] = bool(int(data.get("protect_secrets", 0)))
         data["docker_secrets"] = data["docker_secrets_array"]
         data["docker_type"] = "service"
         del data["docker_secrets_array"]
@@ -120,6 +121,7 @@ class DockerServiceChallengeType(BaseChallenge):
         :return:
         """
         data = request.form or request.get_json()
+        data["protect_secrets"] = bool(int(data.get("protect_secrets", 0)))
         data["docker_secrets"] = data["docker_secrets_array"]
         data["docker_type"] = "service"
         del data["docker_secrets_array"]

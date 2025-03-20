@@ -1,3 +1,4 @@
+from pathlib import Path
 import tempfile
 import traceback
 
@@ -20,7 +21,7 @@ from .models.models import DockerChallengeTracker, DockerConfig, DockerConfigFor
 from .models.service import DockerServiceChallengeType
 
 
-def __handle_file_upload(file_key, b_obj, attr_name):
+def __handle_file_upload(file_key:str , b_obj: DockerConfig, attr_name: str):
     if file_key not in request.files:
         setattr(b_obj, attr_name, '')
         return
@@ -35,8 +36,8 @@ def __handle_file_upload(file_key, b_obj, attr_name):
             return
     except Exception as err:
         print(err)
-
-    setattr(b_obj, attr_name, '')
+        setattr(b_obj, attr_name, '')
+        
 
 
 def define_docker_admin(app):
@@ -53,6 +54,11 @@ def define_docker_admin(app):
         docker = DockerConfig.query.filter_by(id=1).first()
         form = DockerConfigForm()
 
+        if docker and docker.tls_enabled:
+            for key in ['ca_cert', 'client_cert', 'client_key']:
+                file_name = getattr(docker, key)
+                if file_name and not Path(file_name).exists():
+                    docker.tls_enabled = False
         if docker:
             b = docker
         else:

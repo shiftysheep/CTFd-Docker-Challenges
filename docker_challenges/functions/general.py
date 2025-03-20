@@ -8,8 +8,13 @@ from ..models.models import DockerConfig
 logger = logging.getLogger(__name__)
 
 
-def do_request(docker: DockerConfig, url: str, headers: dict = None,
-               method: str = "GET", data: dict | str = None) -> list | Response:
+def do_request(
+        docker: DockerConfig,
+        url: str,
+        headers: dict = None,
+        method: str = "GET", 
+        data: dict | str = None
+) -> list | Response:
     tls = docker.tls_enabled
     prefix = "https" if tls else "http"
     host = docker.hostname
@@ -34,7 +39,7 @@ def do_request(docker: DockerConfig, url: str, headers: dict = None,
 
     if tls:
         request_args['cert'] = (docker.client_cert, docker.client_key)
-        request_args['verify'] = False
+        request_args['verify'] = docker.ca_cert
 
     logging.info(f'Request to Docker: {request_args["method"]} {request_args["url"]}')
 
@@ -59,20 +64,18 @@ def get_repositories(docker: DockerConfig, tags=False, repos=False):
         return []
 
     result = list()
-    for i in r.json():
-        if not i["RepoTags"] is not None:
+    for image in r.json():
+        repo_tags = image.get("RepoTags")
+        if not repo_tags:
+            continue
+        image_name, _ = repo_tags[0].split(":")
+        if image_name == "<none>":
             continue
 
-        if not i["RepoTags"][0].split(":")[0] != "<none>":
-            continue
-
-        if repos:
-            if not i["RepoTags"][0].split(":")[0] in repos:
+        if repos and image_name not in repos:
                 continue
-        if not tags:
-            result.append(i["RepoTags"][0].split(":")[0])
         else:
-            result.append(i["RepoTags"][0])
+            result.append(image_name if not tags else repo_tags[0])
 
     return list(set(result))
 
@@ -84,10 +87,10 @@ def get_docker_info(docker: DockerConfig) -> str:
         return 'Failed to get docker version info'
 
     response = r.json()
-    if 'Components' not in response:
+    components = response.get('Components')
+    if not components:
         return 'Failed to find information required in response.'
 
-    components = response['Components']
     output = 'Docker versions:\n'
     for component in components:
         output += f"{component['Name']}: {component['Version']}\n"
@@ -120,15 +123,13 @@ def get_unavailable_ports(docker: DockerConfig):
 
     result = list()
     for i in r.json():
-        if "Ports" not in i:
+        ports = i.get("Ports")
+        if not ports:
             continue
 
-        if not i["Ports"]:
-            continue
-
-        for p in i["Ports"]:
-            if p.get("PublicPort", 0):
-                result.append(p["PublicPort"])
+        for port in ports:
+            if port.get("PublicPort", 0):
+                result.append(port["PublicPort"])
 
     r = do_request(docker, "/services?all=1")
     if not r:
@@ -136,19 +137,17 @@ def get_unavailable_ports(docker: DockerConfig):
         return result
 
     rj = r.json()
-    if "message" in rj:
-        if 'This node is not a swarm manager.' in rj['message']:
-            return result
+    if isinstance(rj, dict) and 'This node is not a swarm manager.' in rj.get("message"):
+        return result
 
     for i in r.json():
-        if 'Endpoint' not in i:
+        endpoint = i.get("Endpoint",{}).get("Spec")
+        if not endpoint:
             continue
 
-        endpoint = i["Endpoint"]["Spec"]
-        if not endpoint == {}:
-            for p in endpoint["Ports"]:
-                if p.get("PublishedPort"):
-                    result.append(p["PublishedPort"])
+        for port in endpoint.get("Ports", []):
+            if pub_port := port.get("PublishedPort"):
+                result.append(pub_port)
 
     return result
 

@@ -120,6 +120,8 @@ class ContainerAPI(Resource):
         if challenge.docker_type == 'service':
             instance_id, data = create_service(docker, challenge_id=challenge.id, image=challenge.docker_image,
                                                team=session.name, portbl=portsbl)
+            if not instance_id:
+                return abort(500)
             ports_json = json.loads(data)['EndpointSpec']['Ports']
             ports = [f"{p['PublishedPort']}/{p['Protocol']}" for p in ports_json]
         else:

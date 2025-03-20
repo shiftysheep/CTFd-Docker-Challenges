@@ -30,7 +30,9 @@
         });
     </script>
     
-    <input type="hidden" name="docker_secrets_array" id="docker_secrets_input">         
+    <input type="hidden" name="docker_secrets_array" id="docker_secrets_input">
+    <input type="checkbox" name="protect_secrets" id="protect_secrets" value="1" {% if challenge.protect_secrets %}checked{% endif %}>
+    <label for="protect_secrets">Protect secrets?</label>         
 </div>
 {% endblock %}
 {% block footer %}

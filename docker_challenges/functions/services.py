@@ -1,6 +1,7 @@
 import hashlib
 import json
 import random
+import traceback
 
 from ..functions.general import do_request, get_required_ports, get_secrets
 from ..models.models import DockerConfig, DockerServiceChallenge
@@ -26,6 +27,7 @@ def create_service(docker: DockerConfig, challenge_id: int, image: str, team: st
                 break
     all_secrets = get_secrets(docker)
     secrets_list = list()
+    permissions = 0o600 if challenge.protect_secrets else 0o777
     for image_secret in challenge.docker_secrets.split(','):
         for secret in all_secrets:
             if image_secret == secret['ID']:
@@ -34,7 +36,7 @@ def create_service(docker: DockerConfig, challenge_id: int, image: str, team: st
                         "Name": f"/run/secrets/{secret['Name']}",
                         "UID": "1",
                         "GID": "1",
-                        "Mode": 777
+                        "Mode": permissions
                     },
                     "SecretID": image_secret,
                     "SecretName": secret["Name"]
@@ -56,7 +58,11 @@ def create_service(docker: DockerConfig, challenge_id: int, image: str, team: st
         }
     )
     r = do_request(docker, url=f"/services/create", method="POST", data=data)
-    instance_id = r.json()['ID']
+    instance_id = r.json().get("ID")
+    if not instance_id:
+        print(f"Unable to create service {service_name} with image {image}")
+        print(f"Error: {r.json()}")
+        return None, None
     return instance_id, data
 
 
