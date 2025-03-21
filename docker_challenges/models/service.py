@@ -51,6 +51,8 @@ class DockerServiceChallengeType(BaseChallenge):
         :return:
         """
         data = request.form or request.get_json()
+        data["protect_secrets"] = bool(int(data.get("protect_secrets", 0)))
+
         data["docker_secrets"] = data["docker_secrets_array"]
         data["docker_type"] = "service"
         del data["docker_secrets_array"]
@@ -120,6 +122,7 @@ class DockerServiceChallengeType(BaseChallenge):
         :return:
         """
         data = request.form or request.get_json()
+        data["protect_secrets"] = bool(int(data.get("protect_secrets", 0)))
         data["docker_secrets"] = data["docker_secrets_array"]
         data["docker_type"] = "service"
         del data["docker_secrets_array"]
@@ -195,7 +198,7 @@ class DockerServiceChallengeType(BaseChallenge):
         )
         db.session.add(solve)
         db.session.commit()
-        # trying if this solces the detached instance error...
+        # trying if this solves the detached instance error...
         # db.session.close()
 
     @staticmethod
@@ -219,4 +222,3 @@ class DockerServiceChallengeType(BaseChallenge):
         )
         db.session.add(wrong)
         db.session.commit()
-        # db.session.close()
