@@ -3,7 +3,6 @@ import tempfile
 import traceback
 
 
-
 from CTFd.api import CTFd_API_v1
 from CTFd.models import Teams, Users, db
 from CTFd.plugins import register_plugin_assets_directory
@@ -13,17 +12,22 @@ from CTFd.utils.decorators import admins_only
 from flask import Blueprint, render_template, request, jsonify
 from sqlalchemy.exc import InternalError
 
-from .api import (active_docker_namespace, container_namespace,
-                  docker_namespace, kill_container, secret_namespace)
+from .api import (
+    active_docker_namespace,
+    container_namespace,
+    docker_namespace,
+    kill_container,
+    secret_namespace,
+)
 from .functions.general import get_repositories, get_docker_info, do_request
 from .models.container import DockerChallengeType
 from .models.models import DockerChallengeTracker, DockerConfig, DockerConfigForm
 from .models.service import DockerServiceChallengeType
 
 
-def __handle_file_upload(file_key:str , b_obj: DockerConfig, attr_name: str):
+def __handle_file_upload(file_key: str, b_obj: DockerConfig, attr_name: str):
     if file_key not in request.files:
-        setattr(b_obj, attr_name, '')
+        setattr(b_obj, attr_name, "")
         return
 
     try:
@@ -36,8 +40,7 @@ def __handle_file_upload(file_key:str , b_obj: DockerConfig, attr_name: str):
             return
     except Exception as err:
         print(err)
-        setattr(b_obj, attr_name, '')
-        
+        setattr(b_obj, attr_name, "")
 
 
 def define_docker_admin(app):
@@ -55,38 +58,38 @@ def define_docker_admin(app):
         form = DockerConfigForm()
 
         if docker and docker.tls_enabled:
-            for key in ['ca_cert', 'client_cert', 'client_key']:
+            for key in ["ca_cert", "client_cert", "client_key"]:
                 file_name = getattr(docker, key)
                 if file_name and not Path(file_name).exists():
                     docker.tls_enabled = False
         if docker:
             b = docker
         else:
-            print('No docker config was found, setting empty one.')
+            print("No docker config was found, setting empty one.")
             b = DockerConfig()
             db.session.add(b)
             db.session.commit()
             docker = DockerConfig.query.filter_by(id=1).first()
 
         if request.method == "POST":
-            __handle_file_upload('ca_cert', b, 'ca_cert')
-            __handle_file_upload('client_cert', b, 'client_cert')
-            __handle_file_upload('client_key', b, 'client_key')
+            __handle_file_upload("ca_cert", b, "ca_cert")
+            __handle_file_upload("client_cert", b, "client_cert")
+            __handle_file_upload("client_key", b, "client_key")
 
-            b.hostname = request.form['hostname']
+            b.hostname = request.form["hostname"]
 
             b.tls_enabled = False
-            if 'tls_enabled' in request.form:
-                b.tls_enabled = request.form['tls_enabled'] == "True"
+            if "tls_enabled" in request.form:
+                b.tls_enabled = request.form["tls_enabled"] == "True"
 
             if not b.tls_enabled:
                 b.ca_cert = None
                 b.client_cert = None
                 b.client_key = None
 
-            repositories = request.form.to_dict(flat=False).get('repositories', None)
+            repositories = request.form.to_dict(flat=False).get("repositories", None)
             if repositories:
-                b.repositories = ','.join(repositories)
+                b.repositories = ",".join(repositories)
             else:
                 b.repositories = None
 
@@ -116,7 +119,13 @@ def define_docker_admin(app):
 
         dinfo = get_docker_info(docker)
 
-        return render_template("docker_config.html", config=dconfig, form=form, repos=selected_repos, info=dinfo)
+        return render_template(
+            "docker_config.html",
+            config=dconfig,
+            form=form,
+            repos=selected_repos,
+            info=dinfo,
+        )
 
     app.register_blueprint(admin_docker_config)
 
@@ -153,16 +162,16 @@ def define_docker_status(app):
 def load(app):
     app.db.create_all()
 
-    CHALLENGE_CLASSES['docker'] = DockerChallengeType
-    CHALLENGE_CLASSES['docker_service'] = DockerServiceChallengeType
+    CHALLENGE_CLASSES["docker"] = DockerChallengeType
+    CHALLENGE_CLASSES["docker_service"] = DockerServiceChallengeType
 
-    register_plugin_assets_directory(app, base_path='/plugins/docker_challenges/assets')
+    register_plugin_assets_directory(app, base_path="/plugins/docker_challenges/assets")
 
     define_docker_admin(app)
     define_docker_status(app)
 
-    CTFd_API_v1.add_namespace(docker_namespace, '/docker')
-    CTFd_API_v1.add_namespace(container_namespace, '/container')
-    CTFd_API_v1.add_namespace(active_docker_namespace, '/docker_status')
-    CTFd_API_v1.add_namespace(kill_container, '/nuke')
-    CTFd_API_v1.add_namespace(secret_namespace, '/secret')
+    CTFd_API_v1.add_namespace(docker_namespace, "/docker")
+    CTFd_API_v1.add_namespace(container_namespace, "/container")
+    CTFd_API_v1.add_namespace(active_docker_namespace, "/docker_status")
+    CTFd_API_v1.add_namespace(kill_container, "/nuke")
+    CTFd_API_v1.add_namespace(secret_namespace, "/secret")

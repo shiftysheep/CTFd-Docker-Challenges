@@ -221,4 +221,3 @@ class DockerServiceChallengeType(BaseChallenge):
         )
         db.session.add(wrong)
         db.session.commit()
-        
