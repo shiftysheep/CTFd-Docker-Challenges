@@ -12,6 +12,7 @@ from CTFd.utils.decorators import admins_only
 from flask import Blueprint, render_template, request, jsonify
 from sqlalchemy.exc import InternalError
 
+
 from .api import (
     active_docker_namespace,
     container_namespace,
