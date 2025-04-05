@@ -43,6 +43,7 @@ def create_container(docker: DockerConfig, image: str, team, portbl: list):
             "Image": image,
             "ExposedPorts": ports,
             "HostConfig": {"PortBindings": bindings},
+            "AutoRemove": True
         }
     )
 

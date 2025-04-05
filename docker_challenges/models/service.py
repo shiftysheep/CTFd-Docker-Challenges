@@ -51,11 +51,12 @@ class DockerServiceChallengeType(BaseChallenge):
         :return:
         """
         data = request.form or request.get_json()
-        data["protect_secrets"] = bool(int(data.get("protect_secrets", 0)))
-
-        data["docker_secrets"] = data["docker_secrets_array"]
+        existing = DockerServiceChallenge.query.filter_by(id=challenge.id).first() # Adding to protect patches from removing configuration
+        data["protect_secrets"] = bool(int(data.get("protect_secrets", existing.protect_secrets)))
+        data["docker_secrets"] = data.get("docker_secrets_array",existing.docker_secrets)
         data["docker_type"] = "service"
-        del data["docker_secrets_array"]
+        if data.get("docker_secrets_array",None):
+            del data["docker_secrets_array"]
         for attr, value in data.items():
             setattr(challenge, attr, value)
 

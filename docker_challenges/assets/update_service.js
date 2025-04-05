@@ -3,13 +3,15 @@ CTFd.plugin.run((_CTFd) => {
     const md = _CTFd.lib.markdown()
     $(document).ready(function() {
         $.getJSON("/api/v1/docker", function(result) {
-            $.each(result['data'], function(i, item) {
+            const images = result['data'].sort((a, b) => a.name.localeCompare(b.name));
+            $.each(images, function(i, item) {
                 $("#dockerimage_select").append($("<option />").val(item.name).text(item.name));
             });
             $("#dockerimage_select").val(DOCKER_IMAGE).change();
         });
         $.getJSON("/api/v1/secret", function(result){
-            $.each(result['data'], function(i, item){
+            const secrets = result['data'].sort((a, b) => a.name.localeCompare(b.name));
+            $.each(secrets, function(i, item){
                 $("#dockersecrets_select").append($("<option />").val(item.id).text(item.name));
             });
             $.each($("#dockersecrets_select option"), function(i, option) {

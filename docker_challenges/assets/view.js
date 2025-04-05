@@ -1,14 +1,11 @@
 CTFd._internal.challenge.data = undefined
 
-CTFd._internal.challenge.renderer = CTFd.lib.markdown();
+CTFd._internal.challenge.renderer = null;
 
 
 CTFd._internal.challenge.preRender = function() {}
 
-CTFd._internal.challenge.render = function(markdown) {
-
-    return CTFd._internal.challenge.renderer.render(markdown)
-}
+CTFd._internal.challenge.render = null;
 
 
 CTFd._internal.challenge.postRender = function() {}
@@ -87,31 +84,30 @@ function start_container(container, challenge_id) {
         });
 }
 
-var modal =
-    '<div class="modal fade" tabindex="-1" role="dialog">' +
-    '  <div class="modal-dialog" role="document">' +
-    '    <div class="modal-content">' +
-    '      <div class="modal-header">' +
-    '        <h5 class="modal-title">{0}</h5>' +
-    '        <button type="button" class="close" data-dismiss="modal" aria-label="Close">' +
-    '          <span aria-hidden="true">&times;</span>' +
-    "        </button>" +
-    "      </div>" +
-    '      <div class="modal-body">' +
-    "        <p>{1}</p>" +
-    "      </div>" +
-    '      <div class="modal-footer">' +
-    "      </div>" +
-    "    </div>" +
-    "  </div>" +
-    "</div>";
-
 function ezal(args) {
-    var res = modal.format(args.title, args.body);
+    var res = `
+    <div class="modal fade" tabindex="-1" role="dialog">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">${args.title}</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>${args.body}</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" data-dismiss="modal">${args.button}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
     var obj = $(res);
-    var button = '<button type="button" class="btn btn-primary" data-dismiss="modal">{0}</button>'.format(
-        args.button
-    );
+    var button = `<button type="button" class="btn btn-primary" data-dismiss="modal">${args.button}</button>`;
+
     obj.find(".modal-footer").append(button);
     $("main").append(obj);
 
