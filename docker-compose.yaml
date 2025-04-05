@@ -17,6 +17,7 @@ services:
     volumes:
       - .data/CTFd/logs:/var/log/CTFd
       - .data/CTFd/uploads:/var/uploads
+      - .data/tmp:/tmp
     depends_on:
       - db
     networks:

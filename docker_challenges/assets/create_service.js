@@ -12,7 +12,8 @@ CTFd.plugin.run((_CTFd) => {
     $(document).ready(function(){
     $('[data-toggle="tooltip"]').tooltip();
     $.getJSON("/api/v1/docker", function(result){
-        $.each(result['data'], function(i, item){
+        const images = result['data'].sort((a, b) => a.name.localeCompare(b.name));
+        $.each(images, function(i, item){
             if (item.name == 'Error in Docker Config!') { 
                 document.docker_form.dockerimage_select.disabled = true;
                 $("label[for='DockerImage']").text('Docker Image ' + item.name)
@@ -23,7 +24,8 @@ CTFd.plugin.run((_CTFd) => {
         });
     });
     $.getJSON("/api/v1/secret", function(result){
-        $.each(result['data'], function(i, item){
+        const secrets = result['data'].sort((a, b) => a.name.localeCompare(b.name));
+        $.each(secrets, function(i, item){
             if (item.name == 'Error in Docker Config!') { 
                 document.docker_form.dockersecrets_select.disabled = true;
                 $("label[for='DockerSecrets']").text('Docker Secret ' + item.name)
