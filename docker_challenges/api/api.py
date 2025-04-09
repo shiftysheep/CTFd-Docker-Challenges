@@ -158,13 +158,13 @@ class ContainerAPI(Resource):
             if not instance_id:
                 return abort(500)
             ports_json = json.loads(data)["EndpointSpec"]["Ports"]
-            ports = [f"{p['PublishedPort']}/{p['Protocol']}" for p in ports_json]
+            ports = [f"{p['PublishedPort']}/{p['Protocol']}-> {p['TargetPort']}" for p in ports_json]
         else:
             instance_id, data = create_container(
                 docker, challenge.docker_image, session.name, portsbl
             )
-            ports_json = json.loads(data)["HostConfig"]["PortBindings"].values()
-            ports = [f"{i['HostPort']}" for p in ports_json for i in p]
+            ports_json = json.loads(data)["HostConfig"]["PortBindings"]
+            ports = [f"{values[0]['HostPort']}->{target}" for target, values in ports_json.items()]
         entry = DockerChallengeTracker(
             team_id=session.id if is_teams_mode() else None,
             user_id=session.id if not is_teams_mode() else None,
