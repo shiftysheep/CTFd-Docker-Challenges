@@ -18,8 +18,8 @@ services:
       - REVERSE_PROXY=true
       - SECRET_KEY=testingkey_DO_NOT_USE_IN_PRODUCTION
     volumes:
-      # Mount this plugin into CTFd's plugins directory
-      - .:/opt/CTFd/CTFd/plugins/docker_challenges:ro
+      # Mount the plugin directory into CTFd's plugins directory
+      - ./docker_challenges:/opt/CTFd/CTFd/plugins/docker_challenges:ro
       - uploads-data:/var/uploads
       - logs-data:/var/log/CTFd
     depends_on:
