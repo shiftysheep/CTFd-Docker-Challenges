@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   ctfd:
-    build: .
+    image: ctfd/ctfd:3.7.3
     user: root
     restart: always
     ports:
@@ -17,7 +17,8 @@ services:
       - ERROR_LOG=-
       - REVERSE_PROXY=true
     volumes:
-      - .:/opt/CTFd:ro
+      # Mount this plugin into CTFd's plugins directory
+      - .:/opt/CTFd/CTFd/plugins/docker_challenges:ro
       - /var/uploads:/var/uploads
       - /var/log/CTFd:/var/log/CTFd
     depends_on:
