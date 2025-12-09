@@ -19,8 +19,8 @@ services:
     volumes:
       # Mount this plugin into CTFd's plugins directory
       - .:/opt/CTFd/CTFd/plugins/docker_challenges:ro
-      - /var/uploads:/var/uploads
-      - /var/log/CTFd:/var/log/CTFd
+      - uploads-data:/var/uploads
+      - logs-data:/var/log/CTFd
     depends_on:
       - db
       - cache
@@ -67,6 +67,8 @@ volumes:
   mariadb-data:
   redis-data:
   docker-data:
+  uploads-data:
+  logs-data:
 
 networks:
   default:
