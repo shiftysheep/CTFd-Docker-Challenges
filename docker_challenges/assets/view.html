@@ -1,17 +1,28 @@
 {% extends "challenge.html" %}
 {% block description %}
-<script>
-    var DOCKER_CONTAINER = '{{ challenge.docker_image | safe }}';
-    (function() {
-        get_docker_status(DOCKER_CONTAINER,'{{ challenge.id | safe }}');
-    })();
-</script>
 {{ challenge.html }}
-<div class='mb-3 text-center' id='docker_container'>
-    <span>
-        <a onclick="start_container('{{ challenge.docker_image | safe }}','{{ challenge.id | safe }}');" class='btn btn-dark'>
+<div class='mb-3 text-center' id='docker_container'
+     x-data="containerStatus('{{ challenge.docker_image | safe }}', '{{ challenge.id | safe }}')"
+     x-init="init()">
+    <!-- Start button - shown when no container is running -->
+    <div x-show="!containerRunning">
+        <a @click="startContainer()" class='btn btn-dark' style="cursor: pointer;">
             <small style='color:white;'><i class="fas fa-play"></i> Start Docker Instance</small>
         </a>
-    </span>
+    </div>
+
+    <!-- Connection information - shown when container is running -->
+    <div x-show="containerRunning">
+        <pre x-text="getConnectionInfo()"></pre>
+        <div class="mt-2">
+            <span x-text="countdownText"></span>
+            <!-- Revert button appears when countdown expires -->
+            <template x-if="countdownText === 'Revert Available'">
+                <a @click="startContainer()" class='btn btn-dark' style="cursor: pointer;">
+                    <small style='color:white;'><i class="fas fa-redo"></i> Revert</small>
+                </a>
+            </template>
+        </div>
+    </div>
 </div>
 {% endblock %}

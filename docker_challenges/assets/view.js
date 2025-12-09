@@ -37,51 +37,97 @@ CTFd._internal.challenge.submit = function(preview) {
     })
 };
 
-function get_docker_status(container,challenge_id) {
-    $.get("/api/v1/docker_status", function(result) {
-        $.each(result['data'], function(i, item) {
-            if (item.challenge_id == challenge_id && item.docker_image == container)  {
-                var ports = String(item.ports).split(',');
-                var data = '';
-                $.each(ports, function(x, port) {
-                    port = String(port)
-                    data = data + 'Host: ' + item.host + ' Port: ' + port + '<br />';
-                })
-                $('#docker_container').html('<pre>Docker Container Information:<br />' + data + '<div class="mt-2" id="' + String(item.instance_id).substring(0,10) + '_revert_container"></div>');
-                var countDownDate = new Date(parseInt(item.revert_time) * 1000).getTime();
-                var x = setInterval(function() {
-                    var now = new Date().getTime();
-                    var distance = countDownDate - now;
-                    var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                    var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-                    if (seconds < 10) {
-                        seconds = "0" + seconds
-                    }
-                    $("#" + String(item.instance_id).substring(0,10) + "_revert_container").html('Next Revert Available in ' + minutes + ':' + seconds);
-                    if (distance < 0) {
-                        clearInterval(x);
-                        $("#" + String(item.instance_id).substring(0,10) + "_revert_container").html('<a onclick="start_container(\'' + container + '\',\'' + challenge_id + '\');" class=\'btn btn-dark\'><small style=\'color:white;\'><i class="fas fa-redo"></i> Revert</small></a>');
-                    }
-                }, 1000);
-                return false;
-            };
-        });
-    });
-};
+// Alpine.js component factory for container status management
+function containerStatus(container, challengeId) {
+    return {
+        containerRunning: false,
+        host: '',
+        ports: '',
+        revertTime: null,
+        countdownText: '',
+        countdownInterval: null,
 
-function start_container(container, challenge_id) {
-    $('#docker_container').html('<div class="text-center"><i class="fas fa-circle-notch fa-spin fa-1x"></i></div>');
-    $.get("/api/v1/container", { 'id': challenge_id }, function(result) {
-            get_docker_status(container, challenge_id);
-        })
-        .fail(function(jqxhr, settings, ex) {
-            ezal({
-                title: "Attention!",
-                body: "You can only revert a container once per 5 minutes! Please be patient.",
-                button: "Got it!"
-            });
-            $(get_docker_status(container, challenge_id));
-        });
+        async init() {
+            await this.pollStatus();
+            // Poll every 30 seconds
+            setInterval(() => this.pollStatus(), 30000);
+        },
+
+        async pollStatus() {
+            try {
+                const response = await fetch('/api/v1/docker_status');
+                const result = await response.json();
+
+                if (result.data && result.data.length > 0) {
+                    const containerInfo = result.data.find(item =>
+                        item.challenge_id == challengeId && item.docker_image == container
+                    );
+
+                    if (containerInfo) {
+                        this.containerRunning = true;
+                        this.host = containerInfo.host;
+                        this.ports = String(containerInfo.ports);
+                        this.revertTime = parseInt(containerInfo.revert_time) * 1000; // Convert to milliseconds
+                        this.updateCountdown();
+                    } else {
+                        this.containerRunning = false;
+                    }
+                }
+            } catch (error) {
+                console.error('Error polling status:', error);
+            }
+        },
+
+        updateCountdown() {
+            // Clear any existing interval
+            if (this.countdownInterval) {
+                clearTimeout(this.countdownInterval);
+            }
+
+            const updateTimer = () => {
+                const now = Date.now();
+                const distance = this.revertTime - now;
+
+                if (distance <= 0) {
+                    this.countdownText = 'Revert Available';
+                    return;
+                }
+
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                const secondsStr = seconds < 10 ? '0' + seconds : seconds;
+
+                this.countdownText = 'Next Revert Available in ' + minutes + ':' + secondsStr;
+
+                // Recursively call after 1 second
+                this.countdownInterval = setTimeout(updateTimer, 1000);
+            };
+
+            updateTimer();
+        },
+
+        async startContainer() {
+            try {
+                await fetch('/api/v1/container?id=' + challengeId);
+                await this.pollStatus();
+            } catch (error) {
+                ezal({
+                    title: 'Attention!',
+                    body: 'You can only revert a container once per 5 minutes! Please be patient.',
+                    button: 'Got it!'
+                });
+                await this.pollStatus();
+            }
+        },
+
+        getConnectionInfo() {
+            if (!this.containerRunning) return '';
+
+            const portList = this.ports.split(',');
+            const lines = portList.map(port => `Host: ${this.host} Port: ${port.trim()}`);
+            return 'Docker Container Information:\n' + lines.join('\n');
+        }
+    };
 }
 
 function ezal(args) {
