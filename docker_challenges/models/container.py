@@ -10,7 +10,7 @@ from CTFd.models import (
     Tags,
     db,
 )
-from CTFd.plugins.challenges import BaseChallenge
+from CTFd.plugins.challenges import BaseChallenge, ChallengeResponse
 from CTFd.plugins.flags import get_flag_class
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.uploads import delete_file
@@ -141,8 +141,8 @@ class DockerChallengeType(BaseChallenge):
         flags = Flags.query.filter_by(challenge_id=challenge.id).all()
         for flag in flags:
             if get_flag_class(flag.type).compare(flag, submission):
-                return True, "Correct"
-        return False, "Incorrect"
+                return ChallengeResponse(status="correct", message="Correct")
+        return ChallengeResponse(status="incorrect", message="Incorrect")
 
     @staticmethod
     def solve(user, team, challenge, request):
