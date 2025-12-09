@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  ctfd:
+    build: .
+    user: root
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - UPLOAD_FOLDER=/var/uploads
+      - DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
+      - REDIS_URL=redis://cache:6379
+      - WORKERS=4
+      - LOG_FOLDER=/var/log/CTFd
+      - ACCESS_LOG=-
+      - ERROR_LOG=-
+      - REVERSE_PROXY=true
+    volumes:
+      - .:/opt/CTFd:ro
+      - /var/uploads:/var/uploads
+      - /var/log/CTFd:/var/log/CTFd
+    depends_on:
+      - db
+      - cache
+      - docker-host
+    networks:
+      default:
+
+  docker-host:
+    image: docker:24-dind
+    container_name: ctfd_docker_host
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    networks:
+      default:
+    volumes:
+      - docker-data:/var/lib/docker
+      - ./test-images:/test-images
+    command: ["dockerd", "--host=tcp://0.0.0.0:2375", "--host=unix:///var/run/docker.sock"]
+
+  db:
+    image: mariadb:10.4.12
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=ctfd
+      - MYSQL_USER=ctfd
+      - MYSQL_PASSWORD=ctfd
+      - MYSQL_DATABASE=ctfd
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    networks:
+      default:
+    command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --wait_timeout=28800, --log-warnings=0]
+
+  cache:
+    image: redis:4
+    restart: always
+    volumes:
+      - redis-data:/data
+    networks:
+      default:
+
+volumes:
+  mariadb-data:
+  redis-data:
+  docker-data:
+
+networks:
+  default:
