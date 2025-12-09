@@ -123,69 +123,95 @@ function nuke_container(instance, all) {
 }
 </script>
 <script>
-var modal =
-    '<div class="modal fade" tabindex="-1" role="dialog">' +
-    '  <div class="modal-dialog" role="document">' +
-    '    <div class="modal-content">' +
-    '      <div class="modal-header">' +
-    '        <h5 class="modal-title">{0}</h5>' +
-    '        <button type="button" class="close" data-dismiss="modal" aria-label="Close">' +
-    '          <span aria-hidden="true">&times;</span>' +
-    "        </button>" +
-    "      </div>" +
-    '      <div class="modal-body">' +
-    "        <p>{1}</p>" +
-    "      </div>" +
-    '      <div class="modal-footer">' +
-    "      </div>" +
-    "    </div>" +
-    "  </div>" +
-    "</div>";
-
+// Bootstrap 5 modal helper functions using native Modal API
 function ezq(args) {
-    var res = modal.format(args.title, args.body);
-    var obj = $(res);
-    var deny =
-        '<button type="button" class="btn btn-danger" data-dismiss="modal">No</button>';
-    var confirm = $(
-        '<button type="button" class="btn btn-primary" data-dismiss="modal">Yes</button>'
-    );
+    // Create modal element
+    const modalElement = document.createElement('div');
+    modalElement.className = 'modal fade';
+    modalElement.tabIndex = -1;
+    modalElement.setAttribute('role', 'dialog');
+    modalElement.innerHTML = `
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">${args.title}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>${args.body}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">No</button>
+                    <button type="button" class="btn btn-primary" id="modal-confirm-btn">Yes</button>
+                </div>
+            </div>
+        </div>
+    `;
 
-    obj.find(".modal-footer").append(deny);
-    obj.find(".modal-footer").append(confirm);
+    // Append to document body
+    document.body.appendChild(modalElement);
 
-    $("main").append(obj);
+    // Initialize Bootstrap 5 modal
+    const modal = new bootstrap.Modal(modalElement);
 
-    $(obj).on("hidden.bs.modal", function(e) {
-        $(this).modal("dispose");
-    });
-
-    $(confirm).click(function() {
+    // Attach click listener to Yes button
+    const confirmBtn = modalElement.querySelector('#modal-confirm-btn');
+    confirmBtn.addEventListener('click', function() {
         args.success();
+        modal.hide();
     });
 
-    obj.modal("show");
+    // Add cleanup listener
+    modalElement.addEventListener('hidden.bs.modal', function() {
+        modal.dispose();
+        modalElement.remove();
+    });
 
-    return obj;
+    // Show modal
+    modal.show();
+
+    return modalElement;
 }
 
 function ezal(args) {
-    var res = modal.format(args.title, args.body);
-    var obj = $(res);
-    var button = '<button type="button" class="btn btn-primary" data-dismiss="modal">{0}</button>'.format(
-        args.button
-    );
+    // Create modal element
+    const modalElement = document.createElement('div');
+    modalElement.className = 'modal fade';
+    modalElement.tabIndex = -1;
+    modalElement.setAttribute('role', 'dialog');
+    modalElement.innerHTML = `
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">${args.title}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>${args.body}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">${args.button}</button>
+                </div>
+            </div>
+        </div>
+    `;
 
-    obj.find(".modal-footer").append(button);
-    $("main").append(obj);
+    // Append to document body
+    document.body.appendChild(modalElement);
 
-    obj.modal("show");
+    // Initialize Bootstrap 5 modal
+    const modal = new bootstrap.Modal(modalElement);
 
-    $(obj).on("hidden.bs.modal", function(e) {
-        $(this).modal("dispose");
+    // Add cleanup listener
+    modalElement.addEventListener('hidden.bs.modal', function() {
+        modal.dispose();
+        modalElement.remove();
     });
 
-    return obj;
+    // Show modal
+    modal.show();
+
+    return modalElement;
 }
 </script>
 {% endblock scripts %}

@@ -85,37 +85,42 @@ function start_container(container, challenge_id) {
 }
 
 function ezal(args) {
-    var res = `
-    <div class="modal fade" tabindex="-1" role="dialog">
+    // Create modal element using Bootstrap 5 native API
+    const modalElement = document.createElement('div');
+    modalElement.className = 'modal fade';
+    modalElement.tabIndex = -1;
+    modalElement.setAttribute('role', 'dialog');
+    modalElement.innerHTML = `
       <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">${args.title}</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <p>${args.body}</p>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-primary" data-dismiss="modal">${args.button}</button>
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">${args.button}</button>
           </div>
         </div>
       </div>
-    </div>
-  `;
-    var obj = $(res);
-    var button = `<button type="button" class="btn btn-primary" data-dismiss="modal">${args.button}</button>`;
+    `;
 
-    obj.find(".modal-footer").append(button);
-    $("main").append(obj);
+    // Append to document body
+    document.body.appendChild(modalElement);
 
-    obj.modal("show");
+    // Initialize Bootstrap 5 modal
+    const modal = new bootstrap.Modal(modalElement);
 
-    $(obj).on("hidden.bs.modal", function(e) {
-        $(this).modal("dispose");
+    // Add cleanup listener
+    modalElement.addEventListener('hidden.bs.modal', function() {
+        modal.dispose();
+        modalElement.remove();
     });
 
-    return obj;
+    // Show modal
+    modal.show();
+
+    return modalElement;
 }
