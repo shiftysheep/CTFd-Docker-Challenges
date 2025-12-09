@@ -9,31 +9,63 @@ CTFd.plugin.run((_CTFd) => {
             );
         }
     });
-    $(document).ready(function(){
-    $('[data-toggle="tooltip"]').tooltip();
-    $.getJSON("/api/v1/docker", function(result){
-        const images = result['data'].sort((a, b) => a.name.localeCompare(b.name));
-        $.each(images, function(i, item){
-            if (item.name == 'Error in Docker Config!') { 
-                document.docker_form.dockerimage_select.disabled = true;
-                $("label[for='DockerImage']").text('Docker Image ' + item.name)
-            }
-            else {
-                $("#dockerimage_select").append($("<option />").val(item.name).text(item.name));
-            }
+
+    // Initialize tooltips and load data using Bootstrap 5 and fetch() APIs
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+            new bootstrap.Tooltip(el);
         });
+
+        // Fetch Docker images
+        fetch("/api/v1/docker")
+            .then(response => response.json())
+            .then(result => {
+                const images = result.data.sort((a, b) => a.name.localeCompare(b.name));
+                const selectElement = document.getElementById('dockerimage_select');
+
+                images.forEach(item => {
+                    if (item.name === 'Error in Docker Config!') {
+                        selectElement.disabled = true;
+                        const label = document.querySelector("label[for='DockerImage']");
+                        if (label) {
+                            label.textContent = 'Docker Image ' + item.name;
+                        }
+                    } else {
+                        const option = document.createElement('option');
+                        option.value = item.name;
+                        option.textContent = item.name;
+                        selectElement.appendChild(option);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching Docker images:', error);
+            });
+
+        // Fetch Docker secrets
+        fetch("/api/v1/secret")
+            .then(response => response.json())
+            .then(result => {
+                const secrets = result.data.sort((a, b) => a.name.localeCompare(b.name));
+                const selectElement = document.getElementById('dockersecrets_select');
+
+                secrets.forEach(item => {
+                    if (item.name === 'Error in Docker Config!') {
+                        selectElement.disabled = true;
+                        const label = document.querySelector("label[for='DockerSecrets']");
+                        if (label) {
+                            label.textContent = 'Docker Secret ' + item.name;
+                        }
+                    } else {
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = item.name;
+                        selectElement.appendChild(option);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching Docker secrets:', error);
+            });
     });
-    $.getJSON("/api/v1/secret", function(result){
-        const secrets = result['data'].sort((a, b) => a.name.localeCompare(b.name));
-        $.each(secrets, function(i, item){
-            if (item.name == 'Error in Docker Config!') { 
-                document.docker_form.dockersecrets_select.disabled = true;
-                $("label[for='DockerSecrets']").text('Docker Secret ' + item.name)
-            }
-            else {
-                $("#dockersecrets_select").append($("<option />").val(item.id).text(item.name));
-            }
-        });
-    });
-});
 });
