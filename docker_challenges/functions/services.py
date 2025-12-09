@@ -11,7 +11,8 @@ def create_service(
     docker: DockerConfig, challenge_id: int, image: str, team: str, portbl: list
 ):
     challenge = DockerServiceChallenge.query.filter_by(id=challenge_id).first()
-    needed_ports = get_required_ports(docker, image)
+    exposed_ports = challenge.exposed_ports if challenge else None
+    needed_ports = get_required_ports(docker, image, exposed_ports)
     team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
     service_name = f"svc_{image.split(':')[1]}{team}"
     assigned_ports = list()

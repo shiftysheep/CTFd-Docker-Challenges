@@ -11,7 +11,7 @@ from CTFd.utils.decorators import admins_only, authed_only
 from CTFd.utils.user import get_current_team, get_current_user
 
 from ..functions.containers import create_container, delete_container
-from ..functions.general import get_repositories, get_secrets, get_unavailable_ports
+from ..functions.general import get_repositories, get_required_ports, get_secrets, get_unavailable_ports
 from ..functions.services import create_service, delete_service
 from ..models.models import (
     DockerChallenge,
@@ -29,6 +29,7 @@ container_namespace = Namespace(
 docker_namespace = Namespace("docker", description="Endpoint to retrieve dockerstuff")
 secret_namespace = Namespace("secret", description="Endpoint to retrieve dockerstuff")
 kill_container = Namespace("nuke", description="Endpoint to nuke containers")
+image_ports_namespace = Namespace("image_ports", description="Endpoint to retrieve image exposed ports")
 
 
 def delete_docker(docker, type, id):
@@ -161,7 +162,7 @@ class ContainerAPI(Resource):
             ports = [f"{p['PublishedPort']}/{p['Protocol']}-> {p['TargetPort']}" for p in ports_json]
         else:
             instance_id, data = create_container(
-                docker, challenge.docker_image, session.name, portsbl
+                docker, challenge.docker_image, session.name, portsbl, challenge.exposed_ports
             )
             ports_json = json.loads(data)["HostConfig"]["PortBindings"]
             ports = [f"{values[0]['HostPort']}->{target}" for target, values in ports_json.items()]
@@ -252,3 +253,32 @@ class SecretAPI(Resource):
                 data.append({"name": i["Name"], "id": i["ID"]})
             return {"success": True, "data": data}
         return {"success": False, "data": [{"name": "Error in Docker Config!"}]}, 400
+
+
+@image_ports_namespace.route("", methods=["GET"])
+class ImagePortsAPI(Resource):
+    """
+    This endpoint retrieves the exposed ports from a Docker image's metadata.
+    Used to auto-populate the exposed_ports field in challenge creation forms.
+    """
+
+    @admins_only
+    def get(self):
+        import logging
+        import traceback
+
+        image = request.args.get("image")
+        if not image:
+            return {"success": False, "error": "Image parameter required"}, 400
+
+        docker = DockerConfig.query.filter_by(id=1).first()
+        if not docker:
+            return {"success": False, "error": "Docker config not found"}, 404
+
+        try:
+            ports = get_required_ports(docker, image, challenge_ports=None)
+            return {"success": True, "ports": ports}
+        except Exception as e:
+            logging.error(f"Error in image_ports endpoint: {type(e).__name__}: {e}")
+            logging.error(f"Traceback: {traceback.format_exc()}")
+            return {"success": False, "error": str(e)}, 500

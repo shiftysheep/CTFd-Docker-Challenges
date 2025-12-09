@@ -154,7 +154,31 @@ def get_unavailable_ports(docker: DockerConfig):
     return result
 
 
-def get_required_ports(docker, image):
+def get_required_ports(docker, image, challenge_ports=None):
+    """
+    Get required ports for a challenge, merging image metadata and challenge configuration.
+
+    Args:
+        docker: DockerConfig object
+        image: Docker image name
+        challenge_ports: Optional comma-separated string of ports (e.g., "80/tcp,443/tcp")
+
+    Returns:
+        Set of port specifications (e.g., {"80/tcp", "443/tcp"})
+    """
+    ports = set()
+
+    # Get ports from image metadata
     r = do_request(docker, f"/images/{image}/json?all=1")
-    result = r.json()["Config"]["ExposedPorts"].keys()
-    return result
+    if r and hasattr(r, 'json'):
+        config = r.json().get("Config", {})
+        exposed_ports = config.get("ExposedPorts")
+        if exposed_ports:
+            ports.update(exposed_ports.keys())
+
+    # Merge with challenge-configured ports
+    if challenge_ports and challenge_ports.strip():
+        configured = [p.strip() for p in challenge_ports.split(',') if p.strip()]
+        ports.update(configured)
+
+    return list(ports)

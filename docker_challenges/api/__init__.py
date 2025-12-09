@@ -4,4 +4,5 @@ from .api import (
     docker_namespace,
     kill_container,
     secret_namespace,
+    image_ports_namespace,
 )

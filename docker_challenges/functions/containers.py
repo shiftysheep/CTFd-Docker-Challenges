@@ -16,8 +16,8 @@ def find_existing(docker: DockerConfig, name: str):
         return r.json()[0]["Id"]
 
 
-def create_container(docker: DockerConfig, image: str, team, portbl: list):
-    needed_ports = get_required_ports(docker, image)
+def create_container(docker: DockerConfig, image: str, team, portbl: list, exposed_ports=None):
+    needed_ports = get_required_ports(docker, image, exposed_ports)
     team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
     container_name = "%s_%s" % (
         image.replace(":", "_").replace("/", "_").replace(".", "_"),

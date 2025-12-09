@@ -34,13 +34,12 @@ This plugin for CTFd allows competing teams/users to start dockerized images for
 
 ## Migration from v2.x
 
-If upgrading from a previous version, see [MIGRATION.md](MIGRATION.md) for detailed upgrade instructions.
-
-**Quick migration summary:**
+**Migration summary:**
 - v3.0.0 requires CTFd 3.8.0+ (core theme)
 - No database changes - existing challenges work without modification
 - Frontend modernized with Alpine.js + Bootstrap 5
 - All features maintain functional parity with v2.x
+- Known fixes: Dynamic form loading, ExposedPorts handling for images without ports
 
 ## Important Notes
 
@@ -100,7 +99,7 @@ If upgrading from a previous version, see [MIGRATION.md](MIGRATION.md) for detai
 
 ### Development Setup
 
-For testing with Docker-in-Docker environment, see [docs/plans/2025-12-09-core-theme-migration-plan.md](docs/plans/2025-12-09-core-theme-migration-plan.md) PHASE-008 for docker-compose.test.yml configuration.
+The repository includes `docker-compose.test.yml` for Docker-in-Docker testing. See script comments for usage.
 
 ## Version History
 
@@ -114,10 +113,11 @@ For testing with Docker-in-Docker environment, see [docs/plans/2025-12-09-core-t
 * ✅ Bootstrap 5 native Modal API (eliminated jQuery modal plugin)
 * ✅ CSP compliant (removed all inline onclick handlers)
 * ✅ Backend: ChallengeResponse migration for CTFd 4.0 compatibility
+* ✅ Fixed dynamic form loading (removed DOMContentLoaded wrappers)
+* ✅ Fixed ExposedPorts handling for images without exposed ports
 * ✅ Maintains 100% functional parity with v2.x
 * 📋 Requirements: CTFd 3.8.0+, Modern browsers (no IE11)
 
-**Migration Guide**: See [MIGRATION.md](MIGRATION.md)
 
 ### v2.x (2021-02-06)
 Works with CTFd 3.2.1+

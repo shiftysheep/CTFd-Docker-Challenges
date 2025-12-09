@@ -99,6 +99,7 @@ class DockerServiceChallengeType(BaseChallenge):
             "name": challenge.name,
             "value": challenge.value,
             "docker_image": challenge.docker_image,
+            "exposed_ports": challenge.exposed_ports,
             "description": challenge.description,
             "category": challenge.category,
             "secrets": challenge.docker_secrets.split(","),

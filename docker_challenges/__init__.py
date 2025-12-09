@@ -19,6 +19,7 @@ from .api import (
     docker_namespace,
     kill_container,
     secret_namespace,
+    image_ports_namespace,
 )
 from .functions.general import get_repositories, get_docker_info, do_request
 from .models.container import DockerChallengeType
@@ -176,3 +177,4 @@ def load(app):
     CTFd_API_v1.add_namespace(active_docker_namespace, "/docker_status")
     CTFd_API_v1.add_namespace(kill_container, "/nuke")
     CTFd_API_v1.add_namespace(secret_namespace, "/secret")
+    CTFd_API_v1.add_namespace(image_ports_namespace, "/image_ports")
