@@ -1,17 +1,15 @@
 CTFd.plugin.run((_CTFd) => {
-    const $ = _CTFd.lib.$
-    const md = _CTFd.lib.markdown()
+    const $ = _CTFd.lib.$;
+    const md = _CTFd.lib.markdown();
     $('a[href="#new-desc-preview"]').on('shown.bs.tab', function (event) {
         if (event.target.hash == '#new-desc-preview') {
             var editor_value = $('#new-desc-editor').val();
-            $(event.target.hash).html(
-                md.render(editor_value)
-            );
+            $(event.target.hash).html(md.render(editor_value));
         }
     });
 
     // Toggle Advanced Settings
-    document.getElementById('toggleAdvancedSettings').addEventListener('click', function() {
+    document.getElementById('toggleAdvancedSettings').addEventListener('click', function () {
         const settingsDiv = document.getElementById('advancedSettings');
         const chevron = document.getElementById('advancedSettingsChevron');
 
@@ -48,7 +46,7 @@ CTFd.plugin.run((_CTFd) => {
         `;
 
         const removeBtn = row.querySelector('.remove-port-btn');
-        removeBtn.addEventListener('click', function() {
+        removeBtn.addEventListener('click', function () {
             row.remove();
             updatePortsTextarea();
         });
@@ -66,7 +64,7 @@ CTFd.plugin.run((_CTFd) => {
         const rows = document.querySelectorAll('#portsContainer .input-group');
         const ports = [];
 
-        rows.forEach(row => {
+        rows.forEach((row) => {
             const portInput = row.querySelector('.port-input');
             const protocolSelect = row.querySelector('.protocol-select');
             const port = portInput.value.trim();
@@ -95,7 +93,7 @@ CTFd.plugin.run((_CTFd) => {
 
         // Parse and create rows
         const ports = portsString.split(',');
-        ports.forEach(portStr => {
+        ports.forEach((portStr) => {
             const match = portStr.trim().match(/^(\d+)\/(tcp|udp)$/i);
             if (match) {
                 addPortRow(match[1], match[2].toLowerCase());
@@ -109,7 +107,7 @@ CTFd.plugin.run((_CTFd) => {
     }
 
     // Add Port button handler
-    document.getElementById('addPortBtn').addEventListener('click', function() {
+    document.getElementById('addPortBtn').addEventListener('click', function () {
         addPortRow('', 'tcp');
     });
 
@@ -117,13 +115,13 @@ CTFd.plugin.run((_CTFd) => {
     loadExistingPorts();
 
     // Fetch Docker images using fetch() API
-    fetch("/api/v1/docker")
-        .then(response => response.json())
-        .then(result => {
+    fetch('/api/v1/docker')
+        .then((response) => response.json())
+        .then((result) => {
             const images = result.data.sort((a, b) => a.name.localeCompare(b.name));
             const selectElement = document.getElementById('dockerimage_select');
 
-            images.forEach(item => {
+            images.forEach((item) => {
                 if (item.name === 'Error in Docker Config!') {
                     selectElement.disabled = true;
                     const label = document.querySelector("label[for='DockerImage']");
@@ -139,13 +137,13 @@ CTFd.plugin.run((_CTFd) => {
             });
 
             // Auto-populate exposed ports when image is selected
-            selectElement.addEventListener('change', function() {
+            selectElement.addEventListener('change', function () {
                 const imageName = this.value;
                 if (!imageName) return;
 
                 fetch(`/api/v1/image_ports?image=${encodeURIComponent(imageName)}`)
-                    .then(response => response.json())
-                    .then(result => {
+                    .then((response) => response.json())
+                    .then((result) => {
                         if (result.success) {
                             const portsTextarea = document.getElementById('exposed_ports');
 
@@ -159,12 +157,12 @@ CTFd.plugin.run((_CTFd) => {
                             loadExistingPorts(); // Reload UI with new ports
                         }
                     })
-                    .catch(error => {
+                    .catch((error) => {
                         console.error('Error fetching image ports:', error);
                     });
             });
         })
-        .catch(error => {
+        .catch((error) => {
             console.error('Error fetching Docker images:', error);
         });
 
@@ -191,10 +189,14 @@ CTFd.plugin.run((_CTFd) => {
             portsContainer.style.borderRadius = '4px';
 
             // Scroll to the Advanced Settings section
-            document.getElementById('toggleAdvancedSettings').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document
+                .getElementById('toggleAdvancedSettings')
+                .scrollIntoView({ behavior: 'smooth', block: 'center' });
 
             // Show alert
-            alert('ERROR: At least one exposed port must be configured in Advanced Settings.\n\nPlease add a port (e.g., 80/tcp) before submitting.');
+            alert(
+                'ERROR: At least one exposed port must be configured in Advanced Settings.\n\nPlease add a port (e.g., 80/tcp) before submitting.'
+            );
 
             // Remove red border after 3 seconds
             setTimeout(() => {
@@ -210,26 +212,36 @@ CTFd.plugin.run((_CTFd) => {
     // Hook into form submission
     const form = document.querySelector('form');
     if (form) {
-        form.addEventListener('submit', function(event) {
-            if (!validatePorts()) {
-                event.preventDefault();
-                event.stopPropagation();
-                return false;
-            }
-        }, true); // Use capture phase to run before other handlers
-    }
-
-    // Also hook into submit buttons directly
-    setTimeout(() => {
-        const submitButtons = document.querySelectorAll('button[type="submit"], input[type="submit"], .submit-button');
-        submitButtons.forEach(button => {
-            button.addEventListener('click', function(event) {
+        form.addEventListener(
+            'submit',
+            function (event) {
                 if (!validatePorts()) {
                     event.preventDefault();
                     event.stopPropagation();
                     return false;
                 }
-            }, true); // Use capture phase
+            },
+            true
+        ); // Use capture phase to run before other handlers
+    }
+
+    // Also hook into submit buttons directly
+    setTimeout(() => {
+        const submitButtons = document.querySelectorAll(
+            'button[type="submit"], input[type="submit"], .submit-button'
+        );
+        submitButtons.forEach((button) => {
+            button.addEventListener(
+                'click',
+                function (event) {
+                    if (!validatePorts()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return false;
+                    }
+                },
+                true
+            ); // Use capture phase
         });
     }, 1000); // Delay to ensure buttons are loaded
 });

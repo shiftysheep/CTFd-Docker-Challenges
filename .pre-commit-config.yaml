@@ -26,6 +26,7 @@ repos:
           - id: check-case-conflict
           - id: pretty-format-json
             args: ['--autofix']
+            exclude: ^docker_challenges/config\.json$
 
     # Python formatting and linting - Ruff (replaces black, isort, flake8)
     - repo: https://github.com/astral-sh/ruff-pre-commit

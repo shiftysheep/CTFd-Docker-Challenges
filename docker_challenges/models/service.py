@@ -1,3 +1,5 @@
+import logging
+
 from CTFd.models import (
     ChallengeFiles,
     Challenges,
@@ -51,11 +53,13 @@ class DockerServiceChallengeType(BaseChallenge):
         :return:
         """
         data = request.form or request.get_json()
-        existing = DockerServiceChallenge.query.filter_by(id=challenge.id).first() # Adding to protect patches from removing configuration
+        existing = DockerServiceChallenge.query.filter_by(
+            id=challenge.id
+        ).first()  # Adding to protect patches from removing configuration
         data["protect_secrets"] = bool(int(data.get("protect_secrets", existing.protect_secrets)))
-        data["docker_secrets"] = data.get("docker_secrets_array",existing.docker_secrets)
+        data["docker_secrets"] = data.get("docker_secrets_array", existing.docker_secrets)
         data["docker_type"] = "service"
-        if data.get("docker_secrets_array",None):
+        if data.get("docker_secrets_array", None):
             del data["docker_secrets_array"]
         for attr, value in data.items():
             setattr(challenge, attr, value)
@@ -171,17 +175,13 @@ class DockerServiceChallengeType(BaseChallenge):
         try:
             if is_teams_mode():
                 docker_containers = (
-                    DockerChallengeTracker.query.filter_by(
-                        docker_image=challenge.docker_image
-                    )
+                    DockerChallengeTracker.query.filter_by(docker_image=challenge.docker_image)
                     .filter_by(team_id=team.id)
                     .first()
                 )
             else:
                 docker_containers = (
-                    DockerChallengeTracker.query.filter_by(
-                        docker_image=challenge.docker_image
-                    )
+                    DockerChallengeTracker.query.filter_by(docker_image=challenge.docker_image)
                     .filter_by(user_id=user.id)
                     .first()
                 )
@@ -189,8 +189,9 @@ class DockerServiceChallengeType(BaseChallenge):
             DockerChallengeTracker.query.filter_by(
                 instance_id=docker_containers.instance_id
             ).delete()
-        except:
-            pass
+        except Exception as e:
+            # Service may have already been deleted or never created
+            logging.debug(f"Failed to delete service on solve: {e}")
         solve = Solves(
             user_id=user.id,
             team_id=team.id if team else None,

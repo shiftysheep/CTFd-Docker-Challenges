@@ -1,4 +1,5 @@
 import logging
+
 import requests
 from requests import Response
 from requests.exceptions import RequestException, Timeout
@@ -41,11 +42,12 @@ def do_request(
         request_args["cert"] = (docker.client_cert, docker.client_key)
         request_args["verify"] = docker.ca_cert
 
-    logging.info(f'Request to Docker: {request_args["method"]} {request_args["url"]}')
+    logging.info(f"Request to Docker: {request_args['method']} {request_args['url']}")
 
     resp = []
     try:
-        resp = requests.request(**request_args)
+        # Timeout is set in request_args above
+        resp = requests.request(**request_args)  # noqa: S113
     except ConnectionError:
         logging.error("Failed to establish a new connection. Connection refused.")
     except Timeout:
@@ -63,7 +65,7 @@ def get_repositories(docker: DockerConfig, tags=False, repos=False):
     if not r:
         return []
 
-    result = list()
+    result = []
     for image in r.json():
         repo_tags = image.get("RepoTags")
         if not repo_tags:
@@ -100,7 +102,7 @@ def get_docker_info(docker: DockerConfig) -> str:
 
 def get_secrets(docker: DockerConfig):
     r = do_request(docker, "/secrets")
-    tmplist = list()
+    tmplist = []
     for secret in r.json():
         tmpdict = {}
         tmpdict["ID"] = secret["ID"]
@@ -114,16 +116,11 @@ def delete_secret(docker: DockerConfig, id: str):
     return r.ok
 
 
-def get_unavailable_ports(docker: DockerConfig):
-    r = do_request(docker, "/containers/json?all=1")
-
-    if not r:
-        print("Unable to get list of ports that are unavailable (containers)!")
-        return []
-
-    result = list()
-    for i in r.json():
-        ports = i.get("Ports")
+def _extract_container_ports(containers_json: list) -> list:
+    """Extract public ports from container list."""
+    result = []
+    for container in containers_json:
+        ports = container.get("Ports")
         if not ports:
             continue
 
@@ -131,19 +128,14 @@ def get_unavailable_ports(docker: DockerConfig):
             if port.get("PublicPort", 0):
                 result.append(port["PublicPort"])
 
-    r = do_request(docker, "/services?all=1")
-    if not r:
-        print("Unable to get list of ports that are unavailable (services)!")
-        return result
+    return result
 
-    rj = r.json()
-    if isinstance(rj, dict) and "This node is not a swarm manager." in rj.get(
-        "message"
-    ):
-        return result
 
-    for i in r.json():
-        endpoint = i.get("Endpoint", {}).get("Spec")
+def _extract_service_ports(services_json: list) -> list:
+    """Extract published ports from service list."""
+    result = []
+    for service in services_json:
+        endpoint = service.get("Endpoint", {}).get("Spec")
         if not endpoint:
             continue
 
@@ -151,6 +143,30 @@ def get_unavailable_ports(docker: DockerConfig):
             if pub_port := port.get("PublishedPort"):
                 result.append(pub_port)
 
+    return result
+
+
+def get_unavailable_ports(docker: DockerConfig):
+    """Get list of ports already in use by containers and services."""
+    # Get container ports
+    r = do_request(docker, "/containers/json?all=1")
+    if not r:
+        print("Unable to get list of ports that are unavailable (containers)!")
+        return []
+
+    result = _extract_container_ports(r.json())
+
+    # Get service ports
+    r = do_request(docker, "/services?all=1")
+    if not r:
+        print("Unable to get list of ports that are unavailable (services)!")
+        return result
+
+    rj = r.json()
+    if isinstance(rj, dict) and "This node is not a swarm manager." in rj.get("message"):
+        return result
+
+    result.extend(_extract_service_ports(rj))
     return result
 
 
@@ -170,7 +186,7 @@ def get_required_ports(docker, image, challenge_ports=None):
 
     # Get ports from image metadata
     r = do_request(docker, f"/images/{image}/json?all=1")
-    if r and hasattr(r, 'json'):
+    if r and hasattr(r, "json"):
         config = r.json().get("Config", {})
         exposed_ports = config.get("ExposedPorts")
         if exposed_ports:
@@ -178,7 +194,7 @@ def get_required_ports(docker, image, challenge_ports=None):
 
     # Merge with challenge-configured ports
     if challenge_ports and challenge_ports.strip():
-        configured = [p.strip() for p in challenge_ports.split(',') if p.strip()]
+        configured = [p.strip() for p in challenge_ports.split(",") if p.strip()]
         ports.update(configured)
 
     return list(ports)

@@ -1,5 +1,4 @@
-{% extends 'admin/base.html' %}
-{% block content %}
+{% extends 'admin/base.html' %} {% block content %}
 <div class="jumbotron">
     <div class="container">
         <h1>Docker Status</h1>
@@ -12,151 +11,193 @@
             <div class="alert alert-danger alert-dismissable" role="alert">
                 <span class="sr-only">Error:</span>
                 {{ error }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"
+                ></button>
             </div>
-            {% endfor %}
-            {% if dockers %}
-            <table id='dockers' class="table table-striped">
+            {% endfor %} {% if dockers %}
+            <table id="dockers" class="table table-striped">
                 <thead>
                     <tr>
-                        <th width="10px" class="text-center" style="cursor: pointer;" data-column="0">ID</th>
-                        <th class="text-left" style="cursor: pointer;" data-column="1">{% if dockers[0].team_id %}Team{% else %}User{% endif %}</th>
-                        <th class="text-left" style="cursor: pointer;" data-column="2">Docker Image</th>
-                        <th class="text-left" style="cursor: pointer;" data-column="3">Instance ID</th>
+                        <th
+                            width="10px"
+                            class="text-center"
+                            style="cursor: pointer"
+                            data-column="0"
+                        >
+                            ID
+                        </th>
+                        <th class="text-left" style="cursor: pointer" data-column="1">
+                            {% if dockers[0].team_id %}Team{% else %}User{% endif %}
+                        </th>
+                        <th class="text-left" style="cursor: pointer" data-column="2">
+                            Docker Image
+                        </th>
+                        <th class="text-left" style="cursor: pointer" data-column="3">
+                            Instance ID
+                        </th>
                         <th class="text-left">Revoke</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for docker in dockers %}
-                    <tr id='tr_{{docker.instance_id}}' name='{{docker.id}}'>
-                        <td class='text-center' value='{{docker.id}}'>{{docker.id}}</td>
+                    <tr id="tr_{{docker.instance_id}}" name="{{docker.id}}">
+                        <td class="text-center" value="{{docker.id}}">{{docker.id}}</td>
                         {% if docker.team_id %}
-                        <td class='text-center' value='{{docker.team_id | safe }}'>{{docker.team_id | safe }}</td>
+                        <td class="text-center" value="{{docker.team_id | safe }}">
+                            {{docker.team_id | safe }}
+                        </td>
                         {% else %}
-                        <td class='text-center' value='{{docker.team_id | safe }}'>{{docker.user_id | safe }}</td>
+                        <td class="text-center" value="{{docker.team_id | safe }}">
+                            {{docker.user_id | safe }}
+                        </td>
                         {% endif %}
-                        <td class='text-center' value='{{docker.docker_image}}'>{{docker.docker_image}}</td>
-                        <td class='text-center' value='{{docker.instance_id | truncate(15)}}'>{{docker.instance_id | truncate(15)}}</td>
-                        <td class='text-center'><a id="delete_{{docker.instance_id}}" style="cursor: pointer;" class="fas fa-trash delete-container-btn" data-instance-id="{{docker.instance_id}}"></a></td>
+                        <td class="text-center" value="{{docker.docker_image}}">
+                            {{docker.docker_image}}
+                        </td>
+                        <td class="text-center" value="{{docker.instance_id | truncate(15)}}">
+                            {{docker.instance_id | truncate(15)}}
+                        </td>
+                        <td class="text-center">
+                            <a
+                                id="delete_{{docker.instance_id}}"
+                                style="cursor: pointer"
+                                class="fas fa-trash delete-container-btn"
+                                data-instance-id="{{docker.instance_id}}"
+                            ></a>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            <div class='text-center'>
-                <button type="button" class="btn btn-danger" id="nuke-all-btn">Nuke All Containers</button>
+            <div class="text-center">
+                <button type="button" class="btn btn-danger" id="nuke-all-btn">
+                    Nuke All Containers
+                </button>
             </div>
             {% else %}
-            <h3 class='text-center'> No Docker Containers Active</h3>
+            <h3 class="text-center">No Docker Containers Active</h3>
             {% endif %}
         </div>
     </div>
 </div>
-{% endblock content %}
-{% block scripts %}
+{% endblock content %} {% block scripts %}
 <script>
-// Attach event listeners to table headers for sorting
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('#dockers thead th[data-column]').forEach(th => {
-        th.addEventListener('click', function() {
-            const columnIndex = parseInt(this.getAttribute('data-column'));
-            sortTable(columnIndex);
+    // Attach event listeners to table headers for sorting
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('#dockers thead th[data-column]').forEach((th) => {
+            th.addEventListener('click', function () {
+                const columnIndex = parseInt(this.getAttribute('data-column'));
+                sortTable(columnIndex);
+            });
         });
-    });
 
-    // Attach event listeners to delete buttons
-    document.querySelectorAll('.delete-container-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const instanceId = this.getAttribute('data-instance-id');
-            check_nuke_container(instanceId, false);
+        // Attach event listeners to delete buttons
+        document.querySelectorAll('.delete-container-btn').forEach((btn) => {
+            btn.addEventListener('click', function () {
+                const instanceId = this.getAttribute('data-instance-id');
+                check_nuke_container(instanceId, false);
+            });
         });
-    });
 
-    // Attach event listener to nuke all button
-    const nukeAllBtn = document.getElementById('nuke-all-btn');
-    if (nukeAllBtn) {
-        nukeAllBtn.addEventListener('click', function() {
-            check_nuke_container(null, true);
-        });
-    }
-});
-
-function sortTable(n) {
-    var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
-    table = document.getElementById("dockers");
-    switching = true;
-    dir = "asc";
-    while (switching) {
-        switching = false;
-        rows = table.rows;
-        for (i = 1; i < (rows.length - 1); i++) {
-            shouldSwitch = false;
-            x = rows[i].getElementsByTagName("TD")[n];
-            y = rows[i + 1].getElementsByTagName("TD")[n];
-            if (dir == "asc") {
-                if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
-                    shouldSwitch = true;
-                    break;
-                }
-            } else if (dir == "desc") {
-                if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
-                    shouldSwitch = true;
-                    break;
-                }
-            }
-        }
-        if (shouldSwitch) {
-            rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-            switching = true;
-            switchcount++;
-        } else {
-            if (switchcount == 0 && dir == "asc") {
-                dir = "desc";
-                switching = true;
-            }
-        }
-    }
-}
-</script>
-<script>
-function check_nuke_container(instance, all) {
-    ezq({
-        title: "Attention!",
-        body: "Are You Sure You want to do this?",
-        success: function() { nuke_container(instance, all) },
-    });
-}
-
-function nuke_container(instance, all) {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            if (all == true) {
-                window.location = '{{ script_root }}/admin/docker_status'
-            }
-            else {
-                document.getElementById("tr_" + instance).style.display = "none";
-            }
-        } else if (this.readyState == 4 && this.status != 200) {
-            ezal({
-                title: "Attention!",
-                body: "Error when Deleting Docker Container",
-                button: "Got it!",
+        // Attach event listener to nuke all button
+        const nukeAllBtn = document.getElementById('nuke-all-btn');
+        if (nukeAllBtn) {
+            nukeAllBtn.addEventListener('click', function () {
+                check_nuke_container(null, true);
             });
         }
-    };
-    xhttp.open("GET", "/api/v1/nuke?container=" + instance + "&all=" + all, true);
-    xhttp.send();
-}
+    });
+
+    function sortTable(n) {
+        var table,
+            rows,
+            switching,
+            i,
+            x,
+            y,
+            shouldSwitch,
+            dir,
+            switchcount = 0;
+        table = document.getElementById('dockers');
+        switching = true;
+        dir = 'asc';
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < rows.length - 1; i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName('TD')[n];
+                y = rows[i + 1].getElementsByTagName('TD')[n];
+                if (dir == 'asc') {
+                    if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir == 'desc') {
+                    if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount++;
+            } else {
+                if (switchcount == 0 && dir == 'asc') {
+                    dir = 'desc';
+                    switching = true;
+                }
+            }
+        }
+    }
 </script>
 <script>
-// Bootstrap 5 modal helper functions using native Modal API
-function ezq(args) {
-    // Create modal element
-    const modalElement = document.createElement('div');
-    modalElement.className = 'modal fade';
-    modalElement.tabIndex = -1;
-    modalElement.setAttribute('role', 'dialog');
-    modalElement.innerHTML = `
+    function check_nuke_container(instance, all) {
+        ezq({
+            title: 'Attention!',
+            body: 'Are You Sure You want to do this?',
+            success: function () {
+                nuke_container(instance, all);
+            },
+        });
+    }
+
+    function nuke_container(instance, all) {
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                if (all == true) {
+                    window.location = '{{ script_root }}/admin/docker_status';
+                } else {
+                    document.getElementById('tr_' + instance).style.display = 'none';
+                }
+            } else if (this.readyState == 4 && this.status != 200) {
+                ezal({
+                    title: 'Attention!',
+                    body: 'Error when Deleting Docker Container',
+                    button: 'Got it!',
+                });
+            }
+        };
+        xhttp.open('GET', '/api/v1/nuke?container=' + instance + '&all=' + all, true);
+        xhttp.send();
+    }
+</script>
+<script>
+    // Bootstrap 5 modal helper functions using native Modal API
+    function ezq(args) {
+        // Create modal element
+        const modalElement = document.createElement('div');
+        modalElement.className = 'modal fade';
+        modalElement.tabIndex = -1;
+        modalElement.setAttribute('role', 'dialog');
+        modalElement.innerHTML = `
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -174,38 +215,38 @@ function ezq(args) {
         </div>
     `;
 
-    // Append to document body
-    document.body.appendChild(modalElement);
+        // Append to document body
+        document.body.appendChild(modalElement);
 
-    // Initialize Bootstrap 5 modal
-    const modal = new bootstrap.Modal(modalElement);
+        // Initialize Bootstrap 5 modal
+        const modal = new bootstrap.Modal(modalElement);
 
-    // Attach click listener to Yes button
-    const confirmBtn = modalElement.querySelector('#modal-confirm-btn');
-    confirmBtn.addEventListener('click', function() {
-        args.success();
-        modal.hide();
-    });
+        // Attach click listener to Yes button
+        const confirmBtn = modalElement.querySelector('#modal-confirm-btn');
+        confirmBtn.addEventListener('click', function () {
+            args.success();
+            modal.hide();
+        });
 
-    // Add cleanup listener
-    modalElement.addEventListener('hidden.bs.modal', function() {
-        modal.dispose();
-        modalElement.remove();
-    });
+        // Add cleanup listener
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            modal.dispose();
+            modalElement.remove();
+        });
 
-    // Show modal
-    modal.show();
+        // Show modal
+        modal.show();
 
-    return modalElement;
-}
+        return modalElement;
+    }
 
-function ezal(args) {
-    // Create modal element
-    const modalElement = document.createElement('div');
-    modalElement.className = 'modal fade';
-    modalElement.tabIndex = -1;
-    modalElement.setAttribute('role', 'dialog');
-    modalElement.innerHTML = `
+    function ezal(args) {
+        // Create modal element
+        const modalElement = document.createElement('div');
+        modalElement.className = 'modal fade';
+        modalElement.tabIndex = -1;
+        modalElement.setAttribute('role', 'dialog');
+        modalElement.innerHTML = `
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -222,22 +263,22 @@ function ezal(args) {
         </div>
     `;
 
-    // Append to document body
-    document.body.appendChild(modalElement);
+        // Append to document body
+        document.body.appendChild(modalElement);
 
-    // Initialize Bootstrap 5 modal
-    const modal = new bootstrap.Modal(modalElement);
+        // Initialize Bootstrap 5 modal
+        const modal = new bootstrap.Modal(modalElement);
 
-    // Add cleanup listener
-    modalElement.addEventListener('hidden.bs.modal', function() {
-        modal.dispose();
-        modalElement.remove();
-    });
+        // Add cleanup listener
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            modal.dispose();
+            modalElement.remove();
+        });
 
-    // Show modal
-    modal.show();
+        // Show modal
+        modal.show();
 
-    return modalElement;
-}
+        return modalElement;
+    }
 </script>
 {% endblock scripts %}

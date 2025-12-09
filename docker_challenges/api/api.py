@@ -1,17 +1,21 @@
 import json
 from datetime import datetime
 
-from flask import abort, request
-from flask_restx import Namespace, Resource
-
 from CTFd.models import db
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.dates import unix_time
 from CTFd.utils.decorators import admins_only, authed_only
 from CTFd.utils.user import get_current_team, get_current_user
+from flask import abort, request
+from flask_restx import Namespace, Resource
 
 from ..functions.containers import create_container, delete_container
-from ..functions.general import get_repositories, get_required_ports, get_secrets, get_unavailable_ports
+from ..functions.general import (
+    get_repositories,
+    get_required_ports,
+    get_secrets,
+    get_unavailable_ports,
+)
 from ..functions.services import create_service, delete_service
 from ..models.models import (
     DockerChallenge,
@@ -23,23 +27,157 @@ from ..models.models import (
 active_docker_namespace = Namespace(
     "docker_status", description="Endpoint to retrieve User Docker Image Status"
 )
-container_namespace = Namespace(
-    "container", description="Endpoint to interact with containers"
-)
+container_namespace = Namespace("container", description="Endpoint to interact with containers")
 docker_namespace = Namespace("docker", description="Endpoint to retrieve dockerstuff")
 secret_namespace = Namespace("secret", description="Endpoint to retrieve dockerstuff")
 kill_container = Namespace("nuke", description="Endpoint to nuke containers")
-image_ports_namespace = Namespace("image_ports", description="Endpoint to retrieve image exposed ports")
+image_ports_namespace = Namespace(
+    "image_ports", description="Endpoint to retrieve image exposed ports"
+)
 
 
-def delete_docker(docker, type, id):
-    if type == "docker_service":
-        assert delete_service(docker, id)
-
+def delete_docker(docker, docker_type, instance_id):
+    """Delete a Docker container or service and remove from tracker."""
+    if docker_type == "docker_service":
+        assert delete_service(docker, instance_id)
     else:
-        assert delete_container(docker, id)
-    DockerChallengeTracker.query.filter_by(instance_id=id).delete()
+        assert delete_container(docker, instance_id)
+    DockerChallengeTracker.query.filter_by(instance_id=instance_id).delete()
     db.session.commit()
+
+
+def _cleanup_stale_containers(docker, session, is_teams):
+    """Clean up containers older than 2 hours for current session."""
+    containers = DockerChallengeTracker.query.all()
+    session_id_field = "team_id" if is_teams else "user_id"
+
+    for container in containers:
+        session_id = getattr(container, session_id_field)
+        age_seconds = unix_time(datetime.utcnow()) - int(container.timestamp)
+
+        if int(session.id) == int(session_id) and age_seconds >= 7200:
+            challenge = DockerChallenge.query.filter_by(id=container.challenge_id).first()
+            if not challenge:
+                challenge = DockerServiceChallenge.query.filter_by(
+                    id=container.challenge_id
+                ).first()
+
+            if challenge:
+                delete_docker(docker, challenge.type, container.instance_id)
+
+
+def _get_existing_container(session, challenge, is_teams):
+    """Get existing container for session and challenge if it exists."""
+    query = DockerChallengeTracker.query
+    query = query.filter_by(team_id=session.id) if is_teams else query.filter_by(user_id=session.id)
+
+    return (
+        query.filter_by(docker_image=challenge.docker_image)
+        .filter_by(challenge_id=challenge.id)
+        .first()
+    )
+
+
+def _should_revert_container(existing_container):
+    """Check if container should be reverted (older than 5 minutes)."""
+    if not existing_container:
+        return False
+
+    age_seconds = unix_time(datetime.utcnow()) - int(existing_container.timestamp)
+    return age_seconds >= 300
+
+
+def _get_challenge_by_id(challenge_id):
+    """Retrieve challenge by ID, checking both Docker and DockerService types."""
+    challenge = DockerChallenge.query.filter_by(id=challenge_id).first()
+    if not challenge:
+        challenge = DockerServiceChallenge.query.filter_by(id=challenge_id).first()
+    return challenge
+
+
+def _create_docker_instance(docker, challenge, session, portsbl):
+    """Create a new Docker container or service instance."""
+    if challenge.docker_type == "service":
+        instance_id, data = create_service(
+            docker,
+            challenge_id=challenge.id,
+            image=challenge.docker_image,
+            team=session.name,
+            portbl=portsbl,
+        )
+        if not instance_id:
+            return None, None, None
+
+        ports_json = json.loads(data)["EndpointSpec"]["Ports"]
+        ports = [f"{p['PublishedPort']}/{p['Protocol']}-> {p['TargetPort']}" for p in ports_json]
+    else:
+        instance_id, data = create_container(
+            docker, challenge.docker_image, session.name, portsbl, challenge.exposed_ports
+        )
+        ports_json = json.loads(data)["HostConfig"]["PortBindings"]
+        ports = [f"{values[0]['HostPort']}->{target}" for target, values in ports_json.items()]
+
+    return instance_id, ports, data
+
+
+def _handle_container_creation(docker, challenge, session, is_teams):
+    """Handle complete container/service creation workflow."""
+    # Clean up stale containers (older than 2 hours)
+    _cleanup_stale_containers(docker, session, is_teams)
+
+    # Check for existing container
+    existing = _get_existing_container(session, challenge, is_teams)
+
+    # Don't create if container exists and is less than 5 minutes old
+    if existing and not _should_revert_container(existing):
+        return None
+
+    # Revert container if it exists and is old enough
+    if existing:
+        delete_docker(docker, challenge.type, existing.instance_id)
+
+    # Create new container/service
+    portsbl = get_unavailable_ports(docker)
+    instance_id, ports, _data = _create_docker_instance(docker, challenge, session, portsbl)
+
+    return (instance_id, ports) if instance_id else None
+
+
+def _get_all_challenges():
+    """Get all challenges indexed by ID."""
+    challenges = {c.id: c for c in DockerChallenge.query.all()}
+    challenges.update({c.id: c for c in DockerServiceChallenge.query.all()})
+    return challenges
+
+
+def _kill_all_containers(docker_config, docker_tracker, challenges):
+    """Kill all tracked containers."""
+    for tracker_entry in docker_tracker:
+        challenge = challenges.get(tracker_entry.challenge_id)
+        if challenge:
+            print(f"type:{challenge.type}")
+            print(f"instance_id:{tracker_entry.instance_id}")
+            delete_docker(
+                docker=docker_config,
+                docker_type=challenge.type,
+                instance_id=tracker_entry.instance_id,
+            )
+
+
+def _kill_single_container(docker_config, container_id, docker_tracker, challenges):
+    """Kill a specific container by ID."""
+    tracker_entry = next((c for c in docker_tracker if c.instance_id == container_id), None)
+    if not tracker_entry:
+        return "Container not found", 404
+
+    challenge = challenges.get(tracker_entry.challenge_id)
+    if not challenge:
+        return "Challenge not found", 404
+
+    delete_docker(
+        docker=docker_config, docker_type=challenge.type, instance_id=tracker_entry.instance_id
+    )
+    return None
 
 
 @kill_container.route("", methods=["POST", "GET"])
@@ -50,36 +188,18 @@ class KillContainerAPI(Resource):
         full = request.args.get("all")
         docker_config = DockerConfig.query.filter_by(id=1).first_or_404()
         docker_tracker = DockerChallengeTracker.query.all()
-        challenges = {c.id: c for c in DockerChallenge.query.all()}
-        challenges.update({c.id: c for c in DockerServiceChallenge.query.all()})
+        challenges = _get_all_challenges()
 
         if full == "true":
-            for c in docker_tracker:
-                challenge_id = c.challenge_id
-                challenge = challenges.get(challenge_id)
-                if challenge:
-                    challenge_type = challenge.type
-                    print(f"type:{challenge_type}")
-                    print(f"instance_id:{c.instance_id}")
-                    delete_docker(
-                        docker=docker_config, type=challenge_type, id=c.instance_id
-                    )
-
-        elif container != "null" and container in [
-            c.instance_id for c in docker_tracker
-        ]:
-            c = next((c for c in docker_tracker if c.instance_id == container), None)
-            if c:
-                challenge = challenges.get(c.challenge_id)
-                if challenge:
-                    delete_docker(
-                        docker=docker_config, type=challenge.type, id=c.instance_id
-                    )
-                else:
-                    return "Challenge not found", 404
-            else:
-                return "Container not found", 404
-
+            _kill_all_containers(docker_config, docker_tracker, challenges)
+        elif (
+            container
+            and container != "null"
+            and container in [c.instance_id for c in docker_tracker]
+        ):
+            error = _kill_single_container(docker_config, container, docker_tracker, challenges)
+            if error:
+                return error
         else:
             return "Invalid request", 400
 
@@ -94,81 +214,28 @@ class ContainerAPI(Resource):
         challenge_id = request.args.get("id")
         if not challenge_id:
             return abort(403)
+
+        # Get Docker config and challenge
         docker = DockerConfig.query.filter_by(id=1).first()
-        containers = DockerChallengeTracker.query.all()
-        challenge = DockerChallenge.query.filter_by(id=challenge_id).first()
-        if not challenge:
-            challenge = DockerServiceChallenge.query.filter_by(id=challenge_id).first()
+        challenge = _get_challenge_by_id(challenge_id)
         if not challenge:
             return abort(403)
-        if is_teams_mode():
-            session = get_current_team()
-        else:
-            session = get_current_user()
-        for i in containers:
-            if (
-                int(session.id) == int(i.team_id if is_teams_mode() else i.user_id)
-                and (unix_time(datetime.utcnow()) - int(i.timestamp)) >= 7200
-            ):
-                delete_docker(docker, challenge.type, i.instance_id)
-                DockerChallengeTracker.query.filter_by(
-                    instance_id=i.instance_id
-                ).delete()
-                db.session.commit()
-        if is_teams_mode():
-            check = (
-                DockerChallengeTracker.query.filter_by(team_id=session.id)
-                .filter_by(docker_image=challenge.docker_image)
-                .filter_by(challenge_id=challenge.id)
-                .first()
-            )
-        else:
-            check = (
-                DockerChallengeTracker.query.filter_by(user_id=session.id)
-                .filter_by(docker_image=challenge.docker_image)
-                .filter_by(challenge_id=challenge.id)
-                .first()
-            )
-        # If this container is already created, we don't need another one.
-        if (
-            check != None
-            and not (unix_time(datetime.utcnow()) - int(check.timestamp)) >= 300
-        ):
-            return abort(403)
-        # The exception would be if we are reverting a box. So we'll delete it if it exists and has been around for more than 5 minutes.
-        elif check != None:
-            delete_docker(docker, challenge.type, check.instance_id)
-            if is_teams_mode():
-                DockerChallengeTracker.query.filter_by(team_id=session.id).filter_by(
-                    docker_image=challenge.docker_image
-                ).filter_by(challenge_id=challenge.id).delete()
-            else:
-                DockerChallengeTracker.query.filter_by(user_id=session.id).filter_by(
-                    docker_image=challenge.docker_image
-                ).filter_by(challenge_id=challenge.id).delete()
-            db.session.commit()
-        portsbl = get_unavailable_ports(docker)
-        if challenge.docker_type == "service":
-            instance_id, data = create_service(
-                docker,
-                challenge_id=challenge.id,
-                image=challenge.docker_image,
-                team=session.name,
-                portbl=portsbl,
-            )
-            if not instance_id:
-                return abort(500)
-            ports_json = json.loads(data)["EndpointSpec"]["Ports"]
-            ports = [f"{p['PublishedPort']}/{p['Protocol']}-> {p['TargetPort']}" for p in ports_json]
-        else:
-            instance_id, data = create_container(
-                docker, challenge.docker_image, session.name, portsbl, challenge.exposed_ports
-            )
-            ports_json = json.loads(data)["HostConfig"]["PortBindings"]
-            ports = [f"{values[0]['HostPort']}->{target}" for target, values in ports_json.items()]
+
+        # Get current session (team or user)
+        is_teams = is_teams_mode()
+        session = get_current_team() if is_teams else get_current_user()
+
+        # Handle container creation workflow
+        result = _handle_container_creation(docker, challenge, session, is_teams)
+        if not result:
+            return abort(403) if result is None else abort(500)
+
+        instance_id, ports = result
+
+        # Track the new container
         entry = DockerChallengeTracker(
-            team_id=session.id if is_teams_mode() else None,
-            user_id=session.id if not is_teams_mode() else None,
+            team_id=session.id if is_teams else None,
+            user_id=session.id if not is_teams else None,
             challenge_id=challenge_id,
             docker_image=challenge.docker_image,
             timestamp=unix_time(datetime.utcnow()),
@@ -198,7 +265,7 @@ class DockerStatus(Resource):
         else:
             session = get_current_user()
             tracker = DockerChallengeTracker.query.filter_by(user_id=session.id)
-        data = list()
+        data = []
         for i in tracker:
             data.append(
                 {
@@ -229,7 +296,7 @@ class DockerAPI(Resource):
         docker = DockerConfig.query.filter_by(id=1).first()
         images = get_repositories(docker, tags=True, repos=docker.repositories)
         if images:
-            data = list()
+            data = []
             for i in images:
                 data.append({"name": i})
             return {"success": True, "data": data}
@@ -248,7 +315,7 @@ class SecretAPI(Resource):
         docker = DockerConfig.query.filter_by(id=1).first()
         secrets = get_secrets(docker)
         if secrets:
-            data = list()
+            data = []
             for i in secrets:
                 data.append({"name": i["Name"], "id": i["ID"]})
             return {"success": True, "data": data}

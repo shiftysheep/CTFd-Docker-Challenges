@@ -1,40 +1,37 @@
-CTFd._internal.challenge.data = undefined
+CTFd._internal.challenge.data = undefined;
 
 CTFd._internal.challenge.renderer = null;
 
-
-CTFd._internal.challenge.preRender = function() {}
+CTFd._internal.challenge.preRender = function () {};
 
 CTFd._internal.challenge.render = null;
 
+CTFd._internal.challenge.postRender = function () {};
 
-CTFd._internal.challenge.postRender = function() {}
-
-
-CTFd._internal.challenge.submit = function(preview) {
-    var challenge_id = parseInt(CTFd.lib.$('#challenge-id').val())
-    var submission = CTFd.lib.$('#challenge-input').val()
+CTFd._internal.challenge.submit = function (preview) {
+    var challenge_id = parseInt(CTFd.lib.$('#challenge-id').val());
+    var submission = CTFd.lib.$('#challenge-input').val();
 
     var body = {
-        'challenge_id': challenge_id,
-        'submission': submission,
-    }
-    var params = {}
+        challenge_id: challenge_id,
+        submission: submission,
+    };
+    var params = {};
     if (preview) {
-        params['preview'] = true
+        params['preview'] = true;
     }
 
-    return CTFd.api.post_challenge_attempt(params, body).then(function(response) {
+    return CTFd.api.post_challenge_attempt(params, body).then(function (response) {
         if (response.status === 429) {
             // User was ratelimited but process response
-            return response
+            return response;
         }
         if (response.status === 403) {
             // User is not logged in or CTF is paused.
-            return response
+            return response;
         }
-        return response
-    })
+        return response;
+    });
 };
 
 // Alpine.js component factory for container status management
@@ -59,8 +56,8 @@ function containerStatus(container, challengeId) {
                 const result = await response.json();
 
                 if (result.data && result.data.length > 0) {
-                    const containerInfo = result.data.find(item =>
-                        item.challenge_id == challengeId && item.docker_image == container
+                    const containerInfo = result.data.find(
+                        (item) => item.challenge_id == challengeId && item.docker_image == container
                     );
 
                     if (containerInfo) {
@@ -114,7 +111,7 @@ function containerStatus(container, challengeId) {
                 ezal({
                     title: 'Attention!',
                     body: 'You can only revert a container once per 5 minutes! Please be patient.',
-                    button: 'Got it!'
+                    button: 'Got it!',
                 });
                 await this.pollStatus();
             }
@@ -124,9 +121,9 @@ function containerStatus(container, challengeId) {
             if (!this.containerRunning) return '';
 
             const portList = this.ports.split(',');
-            const lines = portList.map(port => `Host: ${this.host} Port: ${port.trim()}`);
+            const lines = portList.map((port) => `Host: ${this.host} Port: ${port.trim()}`);
             return 'Docker Container Information:\n' + lines.join('\n');
-        }
+        },
     };
 }
 
@@ -160,7 +157,7 @@ function ezal(args) {
     const modal = new bootstrap.Modal(modalElement);
 
     // Add cleanup listener
-    modalElement.addEventListener('hidden.bs.modal', function() {
+    modalElement.addEventListener('hidden.bs.modal', function () {
         modal.dispose();
         modalElement.remove();
     });

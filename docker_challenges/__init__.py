@@ -1,7 +1,6 @@
-from pathlib import Path
 import tempfile
 import traceback
-
+from pathlib import Path
 
 from CTFd.api import CTFd_API_v1
 from CTFd.models import Teams, Users, db
@@ -9,19 +8,28 @@ from CTFd.plugins import register_plugin_assets_directory
 from CTFd.plugins.challenges import CHALLENGE_CLASSES
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.decorators import admins_only
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request
 from sqlalchemy.exc import InternalError
-
 
 from .api import (
     active_docker_namespace,
     container_namespace,
     docker_namespace,
+    image_ports_namespace,
     kill_container,
     secret_namespace,
-    image_ports_namespace,
 )
-from .functions.general import get_repositories, get_docker_info, do_request
+
+# Re-export API namespaces for external use
+__all__ = [
+    "active_docker_namespace",
+    "container_namespace",
+    "docker_namespace",
+    "image_ports_namespace",
+    "kill_container",
+    "secret_namespace",
+]
+from .functions.general import get_docker_info, get_repositories
 from .models.container import DockerChallengeType
 from .models.models import DockerChallengeTracker, DockerConfig, DockerConfigForm
 from .models.service import DockerServiceChallengeType
@@ -35,10 +43,10 @@ def __handle_file_upload(file_key: str, b_obj: DockerConfig, attr_name: str):
     try:
         file_content = request.files[file_key].stream.read()
         if len(file_content) != 0:
-            tmp_file = tempfile.NamedTemporaryFile(mode="wb", dir="/tmp", delete=False)
-            tmp_file.write(file_content)
-            tmp_file.seek(0)
-            setattr(b_obj, attr_name, tmp_file.name)
+            with tempfile.NamedTemporaryFile(mode="wb", dir="/tmp", delete=False) as tmp_file:
+                tmp_file.write(file_content)
+                tmp_file.flush()
+                setattr(b_obj, attr_name, tmp_file.name)
             return
     except Exception as err:
         print(err)
@@ -101,9 +109,9 @@ def define_docker_admin(app):
 
         try:
             repos = get_repositories(docker)
-        except:
+        except Exception:
             print(traceback.print_exc())
-            repos = list()
+            repos = []
 
         if len(repos) == 0:
             form.repositories.choices = [("ERROR", "Failed to load repositories")]
@@ -113,9 +121,9 @@ def define_docker_admin(app):
         dconfig = DockerConfig.query.first()
         try:
             selected_repos = dconfig.repositories
-            if selected_repos == None:
-                selected_repos = list()
-        except:
+            if selected_repos is None:
+                selected_repos = []
+        except Exception:
             print(traceback.print_exc())
             selected_repos = []
 

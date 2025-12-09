@@ -1,5 +1,4 @@
-{% extends 'admin/base.html' %}
-{% block content %}
+{% extends 'admin/base.html' %} {% block content %}
 <div class="jumbotron">
     <div class="container">
         <h1>Docker Config</h1>
@@ -12,22 +11,45 @@
             <div class="alert alert-danger alert-dismissable" role="alert">
                 <span class="sr-only">Error:</span>
                 {{ error }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"
+                ></button>
             </div>
             {% endfor %}
-            <form method="post" accept-charset="utf-8" autocomplete="off" role="form" name='docker_config'
-                  class="form-horizontal mb-3" enctype="multipart/form-data"
-                  x-data="{ tlsEnabled: {{ 'true' if config.tls_enabled else 'false' }} }">
+            <form
+                method="post"
+                accept-charset="utf-8"
+                autocomplete="off"
+                role="form"
+                name="docker_config"
+                class="form-horizontal mb-3"
+                enctype="multipart/form-data"
+                x-data="{ tlsEnabled: {{ 'true' if config.tls_enabled else 'false' }} }"
+            >
                 <div class="form-group">
-                    <label for="hostname-input">
-                        Hostname
-                    </label>
+                    <label for="hostname-input"> Hostname </label>
                     {% if config.hostname %}
-                    <input class="form-control" type="text" name="hostname" id="hostname-input"
-                           placeholder="Ex: 10.10.10.10:2376" value='{{ config.hostname }}' required />
+                    <input
+                        class="form-control"
+                        type="text"
+                        name="hostname"
+                        id="hostname-input"
+                        placeholder="Ex: 10.10.10.10:2376"
+                        value="{{ config.hostname }}"
+                        required
+                    />
                     {% else %}
-                    <input class="form-control" type="text" name="hostname" id="hostname-input"
-                           placeholder="Ex: 10.10.10.10:2376" required />
+                    <input
+                        class="form-control"
+                        type="text"
+                        name="hostname"
+                        id="hostname-input"
+                        placeholder="Ex: 10.10.10.10:2376"
+                        required
+                    />
                     {% endif %}
                 </div>
                 <div class="form-group">
@@ -35,46 +57,98 @@
                 </div>
                 <div class="form-group">
                     <p>TLS Enabled?</p>
-                    <input type="radio" name="tls_enabled" id="tls-radiobox-no" value="False" x-model="tlsEnabled" {% if not config.tls_enabled %}checked{% endif %} />
+                    <input
+                        type="radio"
+                        name="tls_enabled"
+                        id="tls-radiobox-no"
+                        value="False"
+                        x-model="tlsEnabled"
+                        {%
+                        if
+                        not
+                        config.tls_enabled
+                        %}checked{%
+                        endif
+                        %}
+                    />
                     <label for="tls-radiobox-no">No</label>
-                    <input type="radio" name="tls_enabled" id="tls-radiobox-yes" value="True" x-model="tlsEnabled" {% if config.tls_enabled %}checked{% endif %} />
+                    <input
+                        type="radio"
+                        name="tls_enabled"
+                        id="tls-radiobox-yes"
+                        value="True"
+                        x-model="tlsEnabled"
+                        {%
+                        if
+                        config.tls_enabled
+                        %}checked{%
+                        endif
+                        %}
+                    />
                     <label for="tls-radiobox-yes">Yes</label>
                 </div>
                 <div class="form-group">
                     <label for="ca-file">
-                        CA Cert {% if config.ca_cert %} (Uploaded. Adding a new file will overwrite.) {% endif %}
+                        CA Cert {% if config.ca_cert %} (Uploaded. Adding a new file will
+                        overwrite.) {% endif %}
                     </label>
-                    <input class="form-control" type="file" name="ca_cert" id="ca_file" :disabled="tlsEnabled === 'false'" :required="tlsEnabled === 'true' && !{{ 'true' if config.ca_cert else 'false' }}" />
+                    <input
+                        class="form-control"
+                        type="file"
+                        name="ca_cert"
+                        id="ca_file"
+                        :disabled="tlsEnabled === 'false'"
+                        :required="tlsEnabled === 'true' && !{{ 'true' if config.ca_cert else 'false' }}"
+                    />
                 </div>
                 <div class="form-group">
                     <label for="client-file">
-                        Client Cert {% if config.client_cert %} (Uploaded. Adding a new file will overwrite.) {% endif %}
+                        Client Cert {% if config.client_cert %} (Uploaded. Adding a new file will
+                        overwrite.) {% endif %}
                     </label>
-                    <input class="form-control" type="file" name="client_cert" id="client_file" :disabled="tlsEnabled === 'false'" :required="tlsEnabled === 'true' && !{{ 'true' if config.client_cert else 'false' }}" />
+                    <input
+                        class="form-control"
+                        type="file"
+                        name="client_cert"
+                        id="client_file"
+                        :disabled="tlsEnabled === 'false'"
+                        :required="tlsEnabled === 'true' && !{{ 'true' if config.client_cert else 'false' }}"
+                    />
                 </div>
                 <div class="form-group">
                     <label for="key-file">
-                        Client Key {% if config.client_key %} (Uploaded. Adding a new file will overwrite.) {% endif %}
+                        Client Key {% if config.client_key %} (Uploaded. Adding a new file will
+                        overwrite.) {% endif %}
                     </label>
-                    <input class="form-control" type="file" name="client_key" id="key_file" :disabled="tlsEnabled === 'false'" :required="tlsEnabled === 'true' && !{{ 'true' if config.client_key else 'false' }}" />
+                    <input
+                        class="form-control"
+                        type="file"
+                        name="client_key"
+                        id="key_file"
+                        :disabled="tlsEnabled === 'false'"
+                        :required="tlsEnabled === 'true' && !{{ 'true' if config.client_key else 'false' }}"
+                    />
                 </div>
                 <div class="form-group">
-                    <label for="repo-ms">
-                        Repositories
-                    </label>
-                    <select id='repositories' name="repositories" class='form-control' size='10' multiple>
+                    <label for="repo-ms"> Repositories </label>
+                    <select
+                        id="repositories"
+                        name="repositories"
+                        class="form-control"
+                        size="10"
+                        multiple
+                    >
                         {% if form.repositories.choices[0][0] == "ERROR" %}
-                            <option value='False' disabled>{{ form.repositories.choices[0][1] }}</option>
-                        {% elif form.repositories %}
-                            {% for key,value in form.repositories.choices %}
-                                {% if key in repos %}
-                                <option value='{{ key }}' selected>{{ value }}</option>
-                                {% else %}
-                                <option value='{{ key }}'>{{ value }}</option>
-                                {% endif %}
-                            {% endfor %}
+                        <option value="False" disabled>
+                            {{ form.repositories.choices[0][1] }}
+                        </option>
+                        {% elif form.repositories %} {% for key,value in form.repositories.choices
+                        %} {% if key in repos %}
+                        <option value="{{ key }}" selected>{{ value }}</option>
                         {% else %}
-                            <option value='False' disabled>Connect Docker API First</option>
+                        <option value="{{ key }}">{{ value }}</option>
+                        {% endif %} {% endfor %} {% else %}
+                        <option value="False" disabled>Connect Docker API First</option>
                         {% endif %}
                     </select>
                 </div>
@@ -84,7 +158,7 @@
                         Submit
                     </button>
                 </div>
-                <input type="hidden" name="id" value="1">
+                <input type="hidden" name="id" value="1" />
             </form>
         </div>
     </div>

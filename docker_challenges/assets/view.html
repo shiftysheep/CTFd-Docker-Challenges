@@ -1,13 +1,14 @@
-{% extends "challenge.html" %}
-{% block description %}
-{{ challenge.html }}
-<div class='mb-3 text-center' id='docker_container'
-     x-data="containerStatus('{{ challenge.docker_image | safe }}', '{{ challenge.id | safe }}')"
-     x-init="init()">
+{% extends "challenge.html" %} {% block description %} {{ challenge.html }}
+<div
+    class="mb-3 text-center"
+    id="docker_container"
+    x-data="containerStatus('{{ challenge.docker_image | safe }}', '{{ challenge.id | safe }}')"
+    x-init="init()"
+>
     <!-- Start button - shown when no container is running -->
     <div x-show="!containerRunning">
-        <a @click="startContainer()" class='btn btn-dark' style="cursor: pointer;">
-            <small style='color:white;'><i class="fas fa-play"></i> Start Docker Instance</small>
+        <a @click="startContainer()" class="btn btn-dark" style="cursor: pointer">
+            <small style="color: white"><i class="fas fa-play"></i> Start Docker Instance</small>
         </a>
     </div>
 
@@ -18,8 +19,8 @@
             <span x-text="countdownText"></span>
             <!-- Revert button appears when countdown expires -->
             <template x-if="countdownText === 'Revert Available'">
-                <a @click="startContainer()" class='btn btn-dark' style="cursor: pointer;">
-                    <small style='color:white;'><i class="fas fa-redo"></i> Revert</small>
+                <a @click="startContainer()" class="btn btn-dark" style="cursor: pointer">
+                    <small style="color: white"><i class="fas fa-redo"></i> Revert</small>
                 </a>
             </template>
         </div>

@@ -1,8 +1,7 @@
-from wtforms import FileField, HiddenField, RadioField, SelectMultipleField, StringField
-
 from CTFd.forms import BaseForm
 from CTFd.forms.fields import SubmitField
 from CTFd.models import Challenges, db
+from wtforms import FileField, HiddenField, RadioField, SelectMultipleField, StringField
 
 
 class DockerConfig(db.Model):
