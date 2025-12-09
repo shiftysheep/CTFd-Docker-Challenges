@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   ctfd:
-    image: ctfd/ctfd:3.7.3
+    image: ctfd/ctfd:latest
     user: root
     restart: always
     ports:
