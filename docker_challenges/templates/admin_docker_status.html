@@ -12,17 +12,17 @@
             <div class="alert alert-danger alert-dismissable" role="alert">
                 <span class="sr-only">Error:</span>
                 {{ error }}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">×</span></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             {% endfor %}
             {% if dockers %}
             <table id='dockers' class="table table-striped">
                 <thead>
                     <tr>
-                        <th width="10px" class="text-center" style="cursor: pointer;" onclick="sortTable(0)">ID</th>
-                        <th class="text-left" style="cursor: pointer;" onclick="sortTable(1)">{% if dockers[0].team_id %}Team{% else %}User{% endif %}</th>
-                        <th class="text-left" style="cursor: pointer;" onclick="sortTable(2)">Docker Image</th>
-                        <th class="text-left" style="cursor: pointer;" onclick="sortTable(3)">Instance ID</th>
+                        <th width="10px" class="text-center" style="cursor: pointer;" data-column="0">ID</th>
+                        <th class="text-left" style="cursor: pointer;" data-column="1">{% if dockers[0].team_id %}Team{% else %}User{% endif %}</th>
+                        <th class="text-left" style="cursor: pointer;" data-column="2">Docker Image</th>
+                        <th class="text-left" style="cursor: pointer;" data-column="3">Instance ID</th>
                         <th class="text-left">Revoke</th>
                     </tr>
                 </thead>
@@ -37,13 +37,13 @@
                         {% endif %}
                         <td class='text-center' value='{{docker.docker_image}}'>{{docker.docker_image}}</td>
                         <td class='text-center' value='{{docker.instance_id | truncate(15)}}'>{{docker.instance_id | truncate(15)}}</td>
-                        <td class='text-center'><a id="delete_{{docker.instance_id}}" style="cursor: pointer;" class="fas fa-trash" onclick="check_nuke_container('{{docker.instance_id}}', false)"></a></td>
+                        <td class='text-center'><a id="delete_{{docker.instance_id}}" style="cursor: pointer;" class="fas fa-trash delete-container-btn" data-instance-id="{{docker.instance_id}}"></a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
             <div class='text-center'>
-                <button type="button" class="btn btn-danger" onclick="check_nuke_container(null, true)">Nuke All Containers</button>
+                <button type="button" class="btn btn-danger" id="nuke-all-btn">Nuke All Containers</button>
             </div>
             {% else %}
             <h3 class='text-center'> No Docker Containers Active</h3>
@@ -54,6 +54,32 @@
 {% endblock content %}
 {% block scripts %}
 <script>
+// Attach event listeners to table headers for sorting
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('#dockers thead th[data-column]').forEach(th => {
+        th.addEventListener('click', function() {
+            const columnIndex = parseInt(this.getAttribute('data-column'));
+            sortTable(columnIndex);
+        });
+    });
+
+    // Attach event listeners to delete buttons
+    document.querySelectorAll('.delete-container-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const instanceId = this.getAttribute('data-instance-id');
+            check_nuke_container(instanceId, false);
+        });
+    });
+
+    // Attach event listener to nuke all button
+    const nukeAllBtn = document.getElementById('nuke-all-btn');
+    if (nukeAllBtn) {
+        nukeAllBtn.addEventListener('click', function() {
+            check_nuke_container(null, true);
+        });
+    }
+});
+
 function sortTable(n) {
     var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
     table = document.getElementById("dockers");
