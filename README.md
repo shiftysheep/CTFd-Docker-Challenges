@@ -4,7 +4,7 @@ This plugin for CTFd allows competing teams/users to start dockerized images for
 
 > **For Contributors**: See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code quality standards, and contribution guidelines.
 
-## Version 3.0.0 - Core Theme Compatibility
+## Version 2.0.0
 
 **Latest Update**: Migrated to Alpine.js and Bootstrap 5 for CTFd 3.8.0+ (core theme)
 
@@ -113,7 +113,7 @@ Interested in contributing? See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 - Testing guidelines
 - Pull request process
 
-## Version History
+## Release History
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history and release notes.
 
