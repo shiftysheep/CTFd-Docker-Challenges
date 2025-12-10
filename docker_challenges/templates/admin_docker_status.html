@@ -84,6 +84,70 @@
         </div>
     </div>
 </div>
+
+<!-- Alpine.js Modal Templates (CTFd Pattern) -->
+<div x-data>
+    <!-- Confirmation Modal -->
+    <div class="modal fade" x-ref="confirmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" x-text="$store.confirmModal.title"></h5>
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                    ></button>
+                </div>
+                <div class="modal-body">
+                    <p x-html="$store.confirmModal.body"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        No
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-danger"
+                        @click="$store.confirmModal.onConfirm(); $refs.confirmModal.dispatchEvent(new Event('hide.bs.modal'))"
+                    >
+                        Yes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div class="modal fade" x-ref="alertModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" x-text="$store.alertModal.title"></h5>
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                    ></button>
+                </div>
+                <div class="modal-body">
+                    <p x-html="$store.alertModal.body"></p>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        data-bs-dismiss="modal"
+                        x-text="$store.alertModal.button"
+                    ></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock content %} {% block scripts %}
 <script>
     // Attach event listeners to table headers for sorting
@@ -190,125 +254,68 @@
     }
 </script>
 <script>
-    // Get Bootstrap Modal constructor (handle different loading methods)
-    function getBootstrapModal() {
-        // Check if bootstrap is available globally
-        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-            return bootstrap.Modal;
-        }
-        // Check if it's available via window.bootstrap
-        if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
-            return window.bootstrap.Modal;
-        }
-        // Fallback: return null if Bootstrap isn't available (native dialogs will be used)
-        return null;
+    // Initialize Alpine.js stores for modals (CTFd Pattern)
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('confirmModal', {
+            title: '',
+            body: '',
+            onConfirm: () => {},
+        });
+
+        Alpine.store('alertModal', {
+            title: '',
+            body: '',
+            button: 'Got it!',
+        });
+    });
+
+    // Check if Alpine.js and Bootstrap are available
+    function hasAlpineAndBootstrap() {
+        return typeof Alpine !== 'undefined' && typeof bootstrap !== 'undefined' && bootstrap.Modal;
     }
 
-    // Bootstrap 5 modal helper functions using native Modal API
+    // Confirmation modal function (CTFd Pattern with Alpine.js)
     function ezq(args) {
-        const Modal = getBootstrapModal();
-        if (!Modal) {
-            // Fallback if Bootstrap isn't available: use native confirm
+        if (!hasAlpineAndBootstrap()) {
+            // Fallback to native confirm
             if (confirm(args.title + '\n\n' + args.body)) {
                 args.success();
             }
-            return null;
+            return;
         }
 
-        // Create modal element
-        const modalElement = document.createElement('div');
-        modalElement.className = 'modal fade';
-        modalElement.tabIndex = -1;
-        modalElement.setAttribute('role', 'dialog');
-        modalElement.innerHTML = `
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">${args.title}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p>${args.body}</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">No</button>
-                    <button type="button" class="btn btn-primary" id="modal-confirm-btn">Yes</button>
-                </div>
-            </div>
-        </div>
-    `;
-
-        // Append to document body
-        document.body.appendChild(modalElement);
-
-        // Initialize Bootstrap 5 modal
-        const modal = new Modal(modalElement);
-
-        // Attach click listener to Yes button
-        const confirmBtn = modalElement.querySelector('#modal-confirm-btn');
-        confirmBtn.addEventListener('click', function () {
-            args.success();
-            modal.hide();
+        // Set Alpine store data
+        Alpine.store('confirmModal', {
+            title: args.title,
+            body: args.body,
+            onConfirm: args.success,
         });
 
-        // Add cleanup listener
-        modalElement.addEventListener('hidden.bs.modal', function () {
-            modal.dispose();
-            modalElement.remove();
-        });
-
-        // Show modal
+        // Show modal using Bootstrap Modal API
+        const modalElement = document.querySelector('[x-ref="confirmModal"]');
+        const modal = new bootstrap.Modal(modalElement);
         modal.show();
-
-        return modalElement;
     }
 
+    // Alert modal function (CTFd Pattern with Alpine.js)
     function ezal(args) {
-        const Modal = getBootstrapModal();
-        if (!Modal) {
-            // Fallback if Bootstrap isn't available: use native alert
+        if (!hasAlpineAndBootstrap()) {
+            // Fallback to native alert
             alert(args.title + '\n\n' + args.body);
-            return null;
+            return;
         }
 
-        // Create modal element
-        const modalElement = document.createElement('div');
-        modalElement.className = 'modal fade';
-        modalElement.tabIndex = -1;
-        modalElement.setAttribute('role', 'dialog');
-        modalElement.innerHTML = `
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">${args.title}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p>${args.body}</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">${args.button}</button>
-                </div>
-            </div>
-        </div>
-    `;
-
-        // Append to document body
-        document.body.appendChild(modalElement);
-
-        // Initialize Bootstrap 5 modal
-        const modal = new Modal(modalElement);
-
-        // Add cleanup listener
-        modalElement.addEventListener('hidden.bs.modal', function () {
-            modal.dispose();
-            modalElement.remove();
+        // Set Alpine store data
+        Alpine.store('alertModal', {
+            title: args.title,
+            body: args.body,
+            button: args.button || 'Got it!',
         });
 
-        // Show modal
+        // Show modal using Bootstrap Modal API
+        const modalElement = document.querySelector('[x-ref="alertModal"]');
+        const modal = new bootstrap.Modal(modalElement);
         modal.show();
-
-        return modalElement;
     }
 </script>
 {% endblock scripts %}
