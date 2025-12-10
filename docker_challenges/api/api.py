@@ -182,12 +182,15 @@ def _kill_single_container(docker_config, container_id, docker_tracker, challeng
     return None
 
 
-@kill_container.route("", methods=["POST", "GET"])
+@kill_container.route("", methods=["POST"])
 class KillContainerAPI(Resource):
     @admins_only
-    def get(self):
-        container = request.args.get("container")
-        full = request.args.get("all")
+    def post(self):
+        # Read from request body (JSON or form data)
+        data = request.get_json() or request.form
+        container = data.get("container")
+        full = data.get("all")
+
         docker_config = DockerConfig.query.filter_by(id=1).first_or_404()
         docker_tracker = DockerChallengeTracker.query.all()
         challenges = _get_all_challenges()
