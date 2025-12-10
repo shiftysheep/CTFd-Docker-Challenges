@@ -81,6 +81,20 @@
     - Integrated in DockerChallengeType.create() and update() for both challenge types
     - Prevents malicious admin bypass via client-side validation circumvention
 
+- ✅ **ES6 module loading - jQuery getScript() and timing issues** - Fixed in `8f804f2`
+    - Problem 1: Empty scripts dict caused jQuery getScript() to load HTML as JavaScript
+        - jQuery tried to eval() HTML, causing: "Uncaught SyntaxError: Failed to execute appendChild"
+        - Solution: Created 5 stub JavaScript files that satisfy CTFd's getScript() requirement
+    - Problem 2: window.CTFd not available when update page modules executed
+        - Caused: "Uncaught TypeError: Cannot read properties of undefined (reading 'plugin')"
+        - Solution: Added waitForCTFd() polling function in update.js and update_service.js
+    - Stub files (minimal console.log only):
+        - stub_create.js, stub_update.js, stub_view.js (docker challenges)
+        - stub_create_service.js, stub_update_service.js (service challenges)
+    - Scripts dict in container.py and service.py now point to stubs
+    - Actual ES6 module functionality still loaded via templates with type="module"
+    - Resolves final module loading issues, challenge forms now work correctly
+
 ## ⚠️ High Priority Issues
 
 ### Code Quality
