@@ -409,4 +409,4 @@ class ImagePortsAPI(Resource):
         except Exception as e:
             logging.error(f"Error in image_ports endpoint: {type(e).__name__}: {e}")
             logging.error(f"Traceback: {traceback.format_exc()}")
-            return {"success": False, "error": str(e)}, 500
+            return {"success": False, "error": "Failed to retrieve image port information"}, 500
