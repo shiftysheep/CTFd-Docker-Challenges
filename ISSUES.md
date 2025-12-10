@@ -153,6 +153,18 @@
     - Added descriptive RuntimeError if no port found after max attempts
     - Safety: With 30,000 available ports and 100 attempts, collision probability ~0.33% at 99% utilization
 
+### Code Quality Improvements
+
+- ✅ **Fragile setTimeout delays for button detection** - Fixed in `fb5fa13`
+    - Location: docker_challenges/assets/shared/portManagement.js
+    - Issue: 1000ms setTimeout assumed buttons would be loaded, causing race conditions
+    - Impact: Validation could fail on slow page loads or waste time on fast loads
+    - Solution: Replaced setTimeout with MutationObserver pattern
+    - Watches DOM for dynamically added submit buttons and attaches handlers immediately
+    - Added data attribute flag to prevent duplicate handler attachment
+    - Removed unused UI_LOADING_DELAY_MS constant
+    - Benefits: Immediate detection, no race conditions, more performant
+
 ## ⚠️ High Priority Issues
 
 **No high-priority issues remaining!** ✅
@@ -169,12 +181,6 @@ All blocking, high-priority security, and high-priority maintainability issues h
     - Effort: TBD (requires Docker API research)
 
 ## ℹ️ Suggestions / Technical Debt
-
-- **Hardcoded setTimeout delays**
-    - Locations: create.js:229, update.js:218, etc.
-    - Issue: 1000ms delay assumes button loading time (fragile)
-    - Fix: Use MutationObserver to watch for dynamic elements
-    - Effort: 30 minutes
 
 - **Inconsistent frontend technology stack**
     - Issue: jQuery + Alpine.js + vanilla JS hybrid across files
@@ -216,15 +222,15 @@ All blocking, high-priority security, and high-priority maintainability issues h
 
 ## Summary Statistics
 
-**Total Issues**: 4 (20 fixed in this PR)
+**Total Issues**: 3 (21 fixed in this PR)
 
-- **Fixed in This PR**: 20 (4 blocking + 4 high-priority security + 5 maintainability + 4 UX/bug fixes + 3 code quality)
+- **Fixed in This PR**: 21 (4 blocking + 4 high-priority security + 5 maintainability + 4 UX/bug fixes + 4 code quality)
 - **Blocking**: 0 ✅
 - **High Priority**: 0 ✅ **ALL RESOLVED!**
 - **Active Bugs**: 1 (down from 2!)
-- **Suggestions/Tech Debt**: 3 (down from 7!)
+- **Suggestions/Tech Debt**: 2 (down from 7!)
 - **Feature Requests**: 9
 
 **Critical Path Complete!** All blocking and high-priority issues resolved. 🎉
 
-**Last Updated**: 2025-12-09 (Latest: Alpine.js race condition fix + unbounded port assignment loops fix)
+**Last Updated**: 2025-12-09 (Latest: MutationObserver refactoring for button detection)
