@@ -30,23 +30,27 @@
     - Eliminated 616 lines of duplicated code (37% reduction)
     - Reduced maintenance burden from 4× to 1× effort
 
+### High Priority Security
+
+- ✅ **SSRF vulnerability in image_ports endpoint** - Fixed in `68ddb41`
+    - Added regex validation for Docker image format in api.py:347-360
+    - Prevents path traversal and URL manipulation attacks
+    - Accepts: nginx, nginx:latest, registry.com/user/image:v1.0
+    - Rejects: ../../../etc/passwd, http://malicious.com
+
+- ✅ **Assert statements for error handling** - Fixed in `68ddb41`
+    - Replaced assert with explicit if/raise RuntimeError pattern in api.py:42-46
+    - Prevents silent failures when Python runs with -O optimization
+
+- ✅ **CSRF vulnerability - state-changing GET request** - Fixed in `ce3d463`
+    - Changed /api/v1/nuke endpoint from GET to POST method
+    - Added CSRF token header (init.csrfNonce) in frontend
+    - Replaced XMLHttpRequest with modern fetch() API (bonus improvement)
+    - Prevents container deletion via CSRF attack (img src trick)
+
 ## ⚠️ High Priority Issues
 
 ### Security
-
-- **SSRF vulnerability in image_ports endpoint**
-    - Location: docker_challenges/api/api.py:334-371
-    - Issue: `image` parameter insufficiently validated before Docker API request
-    - Impact: Attackers can specify arbitrary URIs
-    - Fix: Add regex validation for Docker image format
-    - Effort: 30 minutes
-
-- **CSRF vulnerability - state-changing GET request**
-    - Location: docker_challenges/api/api.py:183-204
-    - Issue: `/api/v1/nuke` DELETE operation uses GET method
-    - Impact: Container deletion via CSRF attack (img src trick)
-    - Fix: Change to POST method, update frontend AJAX calls
-    - Effort: 1 hour
 
 - **Client-side only port validation**
     - Location: docker_challenges/assets/create.js, update.js, create_service.js, update_service.js
@@ -65,13 +69,6 @@
     - Impact: Reduced type safety, poor IDE support, runtime errors undetected
     - Fix: Add type hints to function signatures
     - Effort: 3 hours
-
-- **Assert statements for error handling (SOLID violation)**
-    - Location: docker_challenges/api/api.py:43-45
-    - Issue: Using `assert` for validation (removed with `python -O`)
-    - Impact: Silent failures in production
-    - Fix: Replace with explicit error raising
-    - Effort: 15 minutes
 
 - **JavaScript error handling - silent failures**
     - Location: All \*.js files in docker_challenges/assets/
@@ -134,12 +131,6 @@
     - Fix: Use MutationObserver to watch for dynamic elements
     - Effort: 30 minutes
 
-- **XMLHttpRequest in modern codebase**
-    - Location: admin_docker_status.html:236-254
-    - Issue: Old API when rest uses fetch()
-    - Fix: Refactor to fetch() with proper error handling
-    - Effort: 1 hour
-
 - **Inconsistent frontend technology stack**
     - Issue: jQuery + Alpine.js + vanilla JS hybrid across files
     - Impact: Confusing for contributors, larger bundle size
@@ -193,15 +184,15 @@
 
 ## Summary Statistics
 
-**Total Issues**: 20 (5 fixed in this PR)
+**Total Issues**: 17 (8 fixed in this PR)
 
-- **Fixed in This PR**: 5 (4 blocking + 1 maintainability)
+- **Fixed in This PR**: 8 (4 blocking + 3 high-priority security + 1 maintainability)
 - **Blocking**: 0 ✅
-- **High Priority**: 8 (3 security, 3 code quality, 2 maintainability)
+- **High Priority**: 5 (1 security, 2 code quality, 2 maintainability)
 - **Active Bugs**: 2
-- **Suggestions/Tech Debt**: 10
+- **Suggestions/Tech Debt**: 9
 - **Feature Requests**: 9
 
-**Estimated Critical Path**: ~7 hours (high priority security/quality)
+**Estimated Critical Path**: ~6 hours (remaining high priority)
 
-**Last Updated**: 2025-12-09 (Updated after feat/beta-compatibility fixes)
+**Last Updated**: 2025-12-09 (Updated after 3 security fixes: SSRF, Assert, CSRF)
