@@ -1,4 +1,7 @@
-{% extends "challenge.html" %} {% block description %} {{ challenge.html }}
+{% extends "challenge.html" %} {% block description %}
+<script type="module" src="/plugins/docker_challenges/assets/view.js"></script>
+
+{{ challenge.html }}
 <div
     class="mb-3 text-center"
     id="docker_container"
@@ -57,7 +60,4 @@
     </div>
 </div>
 
-{% endblock %} {% block footer %}
-<script type="module" src="/plugins/docker_challenges/assets/view.js"></script>
-<script type="module" src="/plugins/docker_challenges/assets/constants.js"></script>
 {% endblock %}
