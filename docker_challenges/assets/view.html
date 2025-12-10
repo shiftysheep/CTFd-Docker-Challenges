@@ -2,7 +2,7 @@
 <div
     class="mb-3 text-center"
     id="docker_container"
-    x-data="containerStatus('{{ challenge.docker_image | safe }}', '{{ challenge.id | safe }}')"
+    x-data="containerStatus('{{ challenge.docker_image }}', '{{ challenge.id }}')"
     x-init="init()"
 >
     <!-- Start button - shown when no container is running -->
