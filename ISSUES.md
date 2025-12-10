@@ -127,8 +127,8 @@
 
 ### Bug Fixes
 
-- ✅ **Race condition in container cleanup (database query inefficiency)** - Fixed in `[COMMIT_HASH]`
-    - Location: docker_challenges/api/api.py:53-77 (\_cleanup_stale_containers)
+- ✅ **Race condition in container cleanup (database query inefficiency)** - Fixed in `f89d00e`
+    - Location: docker_challenges/api/api.py:53-64 (\_cleanup_stale_containers)
     - Issue: Function queried ALL containers with `.query.all()`, then filtered in Python
     - Impact: Blocked requests while scanning thousands of unrelated containers (O(total_containers))
     - Solution: Filter at database level using `.filter_by(user_id=...)` or `.filter_by(team_id=...)`
