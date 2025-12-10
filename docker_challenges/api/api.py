@@ -39,9 +39,11 @@ image_ports_namespace = Namespace(
 def delete_docker(docker, docker_type, instance_id):
     """Delete a Docker container or service and remove from tracker."""
     if docker_type == "docker_service":
-        assert delete_service(docker, instance_id)
+        if not delete_service(docker, instance_id):
+            raise RuntimeError(f"Failed to delete Docker service: {instance_id}")
     else:
-        assert delete_container(docker, instance_id)
+        if not delete_container(docker, instance_id):
+            raise RuntimeError(f"Failed to delete Docker container: {instance_id}")
     DockerChallengeTracker.query.filter_by(instance_id=instance_id).delete()
     db.session.commit()
 
@@ -332,11 +334,30 @@ class ImagePortsAPI(Resource):
     @admins_only
     def get(self):
         import logging
+        import re
         import traceback
 
         image = request.args.get("image")
         if not image:
             return {"success": False, "error": "Image parameter required"}, 400
+
+        # Validate Docker image name format to prevent SSRF attacks
+        # Pattern: [registry/][namespace/]name[:tag][@digest]
+        # Examples: nginx, nginx:latest, myregistry.com/user/image:v1.0
+        docker_image_pattern = re.compile(
+            r"^(?:(?:[a-z0-9]+(?:[._-][a-z0-9]+)*\.)*[a-z0-9]+(?:[._-][a-z0-9]+)*(?::[0-9]+)?/)?"
+            r"(?:[a-z0-9._-]+/)?"
+            r"[a-z0-9._-]+"
+            r"(?::[a-zA-Z0-9._-]+)?"
+            r"(?:@sha256:[a-f0-9]{64})?$",
+            re.IGNORECASE,
+        )
+
+        if not docker_image_pattern.match(image):
+            return {
+                "success": False,
+                "error": "Invalid Docker image name format",
+            }, 400
 
         docker = DockerConfig.query.filter_by(id=1).first()
         if not docker:
