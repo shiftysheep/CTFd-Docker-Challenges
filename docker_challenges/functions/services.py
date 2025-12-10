@@ -2,13 +2,14 @@ import hashlib
 import json
 import random
 
+from ..constants import PORT_ASSIGNMENT_MAX, PORT_ASSIGNMENT_MIN
 from ..functions.general import do_request, get_required_ports, get_secrets
 from ..models.models import DockerConfig, DockerServiceChallenge
 
 
 def _assign_service_ports(needed_ports: list, blocked_ports: list) -> list:
     """
-    Assign random available ports from range 30000-60000 for service endpoints.
+    Assign random available ports from PORT_ASSIGNMENT_MIN-PORT_ASSIGNMENT_MAX range for service endpoints.
 
     Args:
         needed_ports: List of port/protocol strings (e.g., ["80/tcp", "443/tcp"])
@@ -21,7 +22,7 @@ def _assign_service_ports(needed_ports: list, blocked_ports: list) -> list:
     for port_spec in needed_ports:
         while True:
             # random.choice used for port assignment, not cryptographic purposes
-            assigned_port = random.choice(range(30000, 60000))  # noqa: S311
+            assigned_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))  # noqa: S311
             if assigned_port not in blocked_ports:
                 port_dict = {
                     "PublishedPort": assigned_port,

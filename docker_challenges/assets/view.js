@@ -1,3 +1,5 @@
+import { CONTAINER_POLL_INTERVAL_MS, MS_PER_SECOND } from './constants.js';
+
 CTFd._internal.challenge.data = undefined;
 
 CTFd._internal.challenge.renderer = null;
@@ -46,8 +48,8 @@ function containerStatus(container, challengeId) {
 
         async init() {
             await this.pollStatus();
-            // Poll every 30 seconds
-            setInterval(() => this.pollStatus(), 30000);
+            // Poll at configured interval
+            setInterval(() => this.pollStatus(), CONTAINER_POLL_INTERVAL_MS);
         },
 
         async pollStatus() {
@@ -64,7 +66,7 @@ function containerStatus(container, challengeId) {
                         this.containerRunning = true;
                         this.host = containerInfo.host;
                         this.ports = String(containerInfo.ports);
-                        this.revertTime = parseInt(containerInfo.revert_time) * 1000; // Convert to milliseconds
+                        this.revertTime = parseInt(containerInfo.revert_time) * MS_PER_SECOND; // Convert to milliseconds
                         this.updateCountdown();
                     } else {
                         this.containerRunning = false;

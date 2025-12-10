@@ -3,6 +3,8 @@
  * Shared module for managing exposed ports across Docker challenge forms
  */
 
+import { UI_LOADING_DELAY_MS } from '../constants.js';
+
 /**
  * Validate port number is in valid range (1-65535)
  * @param {string|number} port - Port number to validate
@@ -186,5 +188,5 @@ export function setupPortValidation() {
                 true
             ); // Use capture phase
         });
-    }, 1000); // Delay to ensure buttons are loaded
+    }, UI_LOADING_DELAY_MS); // Delay to ensure buttons are loaded
 }

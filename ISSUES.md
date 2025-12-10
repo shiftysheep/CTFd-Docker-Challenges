@@ -30,10 +30,16 @@
     - Eliminated 616 lines of duplicated code (37% reduction)
     - Reduced maintenance burden from 4× to 1× effort
 
-- ✅ **Unused code cleanup** - Fixed in (pending commit)
+- ✅ **Unused code cleanup** - Fixed in `f45f3d3`
     - Removed delete_secret() function from general.py:120-122 (never called)
     - Removed logger import from general.py:9 (unused variable)
     - Impact: Improved code hygiene, reduced confusion
+
+- ✅ **Magic numbers extraction** - Fixed in (pending commit)
+    - Created constants.py with: CONTAINER_STALE_TIMEOUT_SECONDS (7200), CONTAINER_REVERT_TIMEOUT_SECONDS (300), PORT_ASSIGNMENT_MIN/MAX (30000-60000)
+    - Created constants.js with: CONTAINER_POLL_INTERVAL_MS (30000), UI_LOADING_DELAY_MS (1000), MS_PER_SECOND (1000)
+    - Updated 7 files to import and use constants: api.py, containers.py, services.py, view.js, portManagement.js
+    - Impact: Centralized configuration, improved maintainability
 
 ### High Priority Security
 
@@ -149,12 +155,6 @@
 
 ## ℹ️ Suggestions / Technical Debt
 
-- **Magic numbers throughout codebase**
-    - Issue: Hardcoded timeouts (7200, 300), port ranges (30000-60000), delays (1000ms)
-    - Impact: Difficult to configure, poor maintainability
-    - Fix: Extract to constants.py and constants.js
-    - Effort: 1 hour
-
 - **Unbounded while True loops - port assignment**
     - Locations: containers.py:30-35, services.py:19-29
     - Issue: Infinite loop if all ports occupied
@@ -214,15 +214,15 @@
 
 ## Summary Statistics
 
-**Total Issues**: 16 (13 fixed in this PR)
+**Total Issues**: 15 (14 fixed in this PR)
 
-- **Fixed in This PR**: 13 (4 blocking + 4 high-priority security + 1 maintainability + 3 UX/bug fixes + 1 code hygiene)
+- **Fixed in This PR**: 14 (4 blocking + 4 high-priority security + 1 maintainability + 3 UX/bug fixes + 2 code quality)
 - **Blocking**: 0 ✅
 - **High Priority**: 3 (1 code quality, 2 maintainability)
 - **Active Bugs**: 2
-- **Suggestions/Tech Debt**: 8
+- **Suggestions/Tech Debt**: 7
 - **Feature Requests**: 9
 
 **Estimated Critical Path**: ~5 hours (remaining high priority)
 
-**Last Updated**: 2025-12-09 (Updated after unused code cleanup)
+**Last Updated**: 2025-12-09 (Updated after magic numbers extraction)

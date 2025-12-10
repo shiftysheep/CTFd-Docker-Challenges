@@ -2,6 +2,7 @@ import hashlib
 import json
 import random
 
+from ..constants import PORT_ASSIGNMENT_MAX, PORT_ASSIGNMENT_MIN
 from ..functions.general import do_request, get_required_ports
 from ..models.models import DockerConfig
 
@@ -29,7 +30,7 @@ def create_container(docker: DockerConfig, image: str, team, portbl: list, expos
     for _i in needed_ports:
         while True:
             # random.choice used for port assignment, not cryptographic purposes
-            assigned_port = random.choice(range(30000, 60000))  # noqa: S311
+            assigned_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))  # noqa: S311
             if assigned_port not in portbl:
                 assigned_ports[f"{assigned_port}/tcp"] = {}
                 break

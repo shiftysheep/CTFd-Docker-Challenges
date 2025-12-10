@@ -9,6 +9,7 @@ from CTFd.utils.user import get_current_team, get_current_user
 from flask import abort, request
 from flask_restx import Namespace, Resource
 
+from ..constants import CONTAINER_REVERT_TIMEOUT_SECONDS, CONTAINER_STALE_TIMEOUT_SECONDS
 from ..functions.containers import create_container, delete_container
 from ..functions.general import (
     get_repositories,
@@ -49,7 +50,7 @@ def delete_docker(docker, docker_type, instance_id):
 
 
 def _cleanup_stale_containers(docker, session, is_teams):
-    """Clean up containers older than 2 hours for current session."""
+    """Clean up containers older than CONTAINER_STALE_TIMEOUT_SECONDS for current session."""
     containers = DockerChallengeTracker.query.all()
     session_id_field = "team_id" if is_teams else "user_id"
 
@@ -57,7 +58,7 @@ def _cleanup_stale_containers(docker, session, is_teams):
         session_id = getattr(container, session_id_field)
         age_seconds = unix_time(datetime.utcnow()) - int(container.timestamp)
 
-        if int(session.id) == int(session_id) and age_seconds >= 7200:
+        if int(session.id) == int(session_id) and age_seconds >= CONTAINER_STALE_TIMEOUT_SECONDS:
             challenge = DockerChallenge.query.filter_by(id=container.challenge_id).first()
             if not challenge:
                 challenge = DockerServiceChallenge.query.filter_by(
@@ -81,12 +82,12 @@ def _get_existing_container(session, challenge, is_teams):
 
 
 def _should_revert_container(existing_container):
-    """Check if container should be reverted (older than 5 minutes)."""
+    """Check if container should be reverted (older than CONTAINER_REVERT_TIMEOUT_SECONDS)."""
     if not existing_container:
         return False
 
     age_seconds = unix_time(datetime.utcnow()) - int(existing_container.timestamp)
-    return age_seconds >= 300
+    return age_seconds >= CONTAINER_REVERT_TIMEOUT_SECONDS
 
 
 def _get_challenge_by_id(challenge_id):
@@ -253,7 +254,7 @@ class ContainerAPI(Resource):
             challenge_id=challenge_id,
             docker_image=challenge.docker_image,
             timestamp=unix_time(datetime.utcnow()),
-            revert_time=unix_time(datetime.utcnow()) + 300,
+            revert_time=unix_time(datetime.utcnow()) + CONTAINER_REVERT_TIMEOUT_SECONDS,
             instance_id=instance_id,
             ports=",".join(ports),
             host=str(docker.hostname).split(":")[0],
