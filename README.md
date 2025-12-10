@@ -66,7 +66,7 @@ This plugin for CTFd allows competing teams/users to start dockerized images for
 
     ```bash
     # Clone into plugins directory
-    git clone https://github.com/[your-repo]/CTFd-Docker-Challenges.git CTFd/CTFd/plugins/docker_challenges
+    git clone https://github.com/shiftysheep/CTFd-Docker-Challenges.git CTFd/CTFd/plugins/docker_challenges
 
     # Install Python dependencies
     pip install flask_wtf
@@ -115,30 +115,9 @@ Interested in contributing? See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## Version History
 
-### v3.0.0 (2025-12-09)
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history and release notes.
 
-**Core Theme Compatibility Release**
-
-- ✅ Migrated to Alpine.js 3.9.1 for reactive components
-- ✅ Upgraded to Bootstrap 5.3.3 (from Bootstrap 4)
-- ✅ Replaced all jQuery with vanilla JavaScript and fetch() API
-- ✅ Self-correcting countdown timer (timestamp-based calculations)
-- ✅ Bootstrap 5 native Modal API (eliminated jQuery modal plugin)
-- ✅ CSP compliant (removed all inline onclick handlers)
-- ✅ Backend: ChallengeResponse migration for CTFd 4.0 compatibility
-- ✅ Fixed dynamic form loading (removed DOMContentLoaded wrappers)
-- ✅ Fixed ExposedPorts handling for images without exposed ports
-- ✅ Maintains 100% functional parity with v2.x
-- 📋 Requirements: CTFd 3.8.0+, Modern browsers (no IE11)
-
-### v2.x (2021-02-06)
-
-Works with CTFd 3.2.1+
-
-- Updated entire plugin for CTFd 3.x compatibility
-- Bootstrap 4 + jQuery implementation
-
-#### Credits
+## Credits
 
 - https://github.com/offsecginger (Twitter: @offsec_ginger)
 - Jaime Geiger (For Original Plugin assistance) (Twitter: @jgeigerm)
