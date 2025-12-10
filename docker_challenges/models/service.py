@@ -80,12 +80,13 @@ class DockerServiceChallengeType(BaseChallenge):
         "update": "/plugins/docker_challenges/assets/update_service.html",
         "view": "/plugins/docker_challenges/assets/view.html",
     }
-    # Scripts dictionary required for API but actual injection done via {% block scripts %}
-    # in templates to support type="module" for ES6 imports
+    # Scripts dictionary required for CTFd API compatibility
+    # ES6 module scripts are loaded via {% block footer %} in templates with type="module"
+    # These empty strings prevent CTFd from dynamically executing ES6 code
     scripts = {
-        "create": "/plugins/docker_challenges/assets/create_service.js",
-        "update": "/plugins/docker_challenges/assets/update_service.js",
-        "view": "/plugins/docker_challenges/assets/view.js",
+        "create": "",
+        "update": "",
+        "view": "",
     }
     route = "/plugins/docker_challenges/assets"
     blueprint = Blueprint(
