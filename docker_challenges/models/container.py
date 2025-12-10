@@ -81,12 +81,10 @@ class DockerChallengeType(BaseChallenge):
         "view": "/plugins/docker_challenges/assets/view.html",
     }
     # Scripts dictionary required for CTFd's getScript() loading mechanism
-    # Stub files satisfy jQuery getScript() without interfering with ES6 modules
-    # Actual functionality loaded via {% block footer %} in templates with type="module"
     scripts = {
         "create": "/plugins/docker_challenges/assets/stub_create.js",
         "update": "/plugins/docker_challenges/assets/stub_update.js",
-        "view": "/plugins/docker_challenges/assets/stub_view.js",
+        "view": "/plugins/docker_challenges/assets/view.js",
     }
     route = "/plugins/docker_challenges/assets"
     blueprint = Blueprint(

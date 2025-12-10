@@ -1,4 +1,7 @@
-import { CONTAINER_POLL_INTERVAL_MS, MS_PER_SECOND } from './constants.js';
+// Inline constants (cannot use ES6 imports due to Alpine.js race condition)
+// See CLAUDE.md for explanation of why ES6 modules don't work for challenge views
+const CONTAINER_POLL_INTERVAL_MS = 30000; // 30 seconds
+const MS_PER_SECOND = 1000;
 
 CTFd._internal.challenge.data = undefined;
 
@@ -185,5 +188,4 @@ function ezal(args) {
 }
 
 // Expose containerStatus to global scope for Alpine.js x-data directives
-// ES6 modules have isolated scope, so we need to explicitly make it available
 window.containerStatus = containerStatus;

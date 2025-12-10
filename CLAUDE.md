@@ -242,3 +242,67 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed code quality standards.
 - Teams mode check: `is_teams_mode()` determines whether to use `team_id` or `user_id`
 - Always filter tracker by both challenge_id and docker_image to find user's specific instance
 - `DockerConfig.query.filter_by(id=1).first()` is the standard config retrieval pattern
+
+### JavaScript/Frontend Development
+
+**Script Loading Architecture:**
+
+CTFd challenge types use a `scripts` dictionary to specify JavaScript files loaded via jQuery's `getScript()` mechanism:
+
+```python
+# In models/container.py and models/service.py
+scripts = {
+    "create": "/plugins/docker_challenges/assets/stub_create.js",
+    "update": "/plugins/docker_challenges/assets/stub_update.js",
+    "view": "/plugins/docker_challenges/assets/view.js",
+}
+```
+
+**Important: Python Module Caching**
+
+When you modify the `scripts` dictionary or any Python code:
+
+1. **Changes are cached in memory** by Flask/Werkzeug and won't take effect immediately
+2. **You must restart the CTFd container** to reload Python modules:
+    ```bash
+    docker compose restart ctfd
+    ```
+3. After restart, **hard refresh your browser** (Ctrl+Shift+R / Cmd+Shift+R) to clear JavaScript cache
+
+**Frontend Architecture - Keep It Simple:**
+
+The challenge view JavaScript (`view.js`) uses a **simple, non-module approach**:
+
+- Single file loaded directly by CTFd's getScript()
+- Functions and objects exposed to global scope (e.g., `window.containerStatus`)
+- Works reliably with CTFd's AJAX challenge loading
+- Compatible with Alpine.js x-data directives
+
+**Why avoid ES6 modules for challenge views:**
+
+- ES6 modules (`type="module"`) load asynchronously
+- Alpine.js parses the DOM immediately when challenges load via AJAX
+- Race conditions occur when Alpine tries to use components before modules finish loading
+- Stub files and complex loading strategies add unnecessary complexity
+
+**Admin forms (create/update) can use ES6 modules:**
+
+- Admin pages load as full page requests (not AJAX)
+- Templates have `{% block footer %}` where scripts can inject with `type="module"`
+- Shared functionality can be imported from ES6 modules (e.g., `shared/portManagement.js`)
+
+**Testing JavaScript Changes:**
+
+1. **Modify JavaScript file** (e.g., `assets/view.js`)
+2. **If you changed Python code** (scripts dict, imports, etc.):
+    - Run `docker compose restart ctfd`
+    - Wait 5-10 seconds for container to be ready
+3. **Hard refresh browser** (Ctrl+Shift+R / Cmd+Shift+R)
+4. **Check browser console** for errors
+5. **Test functionality** thoroughly before committing
+
+**Browser Cache Notes:**
+
+- Normal refresh (F5) may serve cached JavaScript
+- Hard refresh (Ctrl+Shift+R) forces re-download of all assets
+- For persistent cache issues, clear browser cache entirely
