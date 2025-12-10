@@ -137,8 +137,7 @@ function getBootstrapModal() {
     if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
         return window.bootstrap.Modal;
     }
-    // Fallback: return null if Bootstrap isn't available
-    console.error('Bootstrap Modal API not available');
+    // Fallback: return null if Bootstrap isn't available (native dialogs will be used)
     return null;
 }
 
