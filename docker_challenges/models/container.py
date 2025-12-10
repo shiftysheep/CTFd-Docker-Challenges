@@ -80,11 +80,8 @@ class DockerChallengeType(BaseChallenge):
         "update": "/plugins/docker_challenges/assets/update.html",
         "view": "/plugins/docker_challenges/assets/view.html",
     }
-    scripts = {
-        "create": "/plugins/docker_challenges/assets/create.js",
-        "update": "/plugins/docker_challenges/assets/update.js",
-        "view": "/plugins/docker_challenges/assets/view.js",
-    }
+    # Scripts are loaded via {% block scripts %} in templates to support type="module"
+    scripts = {}
     route = "/plugins/docker_challenges/assets"
     blueprint = Blueprint(
         "docker_challenges",
