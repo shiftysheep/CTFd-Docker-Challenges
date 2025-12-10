@@ -165,6 +165,22 @@
     - Removed unused UI_LOADING_DELAY_MS constant
     - Benefits: Immediate detection, no race conditions, more performant
 
+### Performance & Scalability
+
+- ✅ **Fixed-interval polling causing request storms** - Fixed in `2f99e5b`
+    - Location: docker_challenges/assets/view.js
+    - Issue: Fixed 30-second polling interval regardless of backend health
+    - Impact: Linear scaling (1000 users = 2000 req/min), hammers struggling backend
+    - Solution: Implemented exponential backoff pattern
+    - On failure: 30s → 60s → 120s → 240s → 300s (max backoff)
+    - On success: Immediately reset to 30s base interval
+    - Track consecutive failures and current poll interval in component state
+    - Benefits:
+        - Reduces load during outages: 2000 req/min → ~200 req/min at max backoff
+        - Automatically recovers when backend stabilizes
+        - Better user experience under high load
+        - Console logging for debugging backoff behavior
+
 ## ⚠️ High Priority Issues
 
 **No high-priority issues remaining!** ✅
@@ -188,13 +204,6 @@ All blocking, high-priority security, and high-priority maintainability issues h
     - Fix: Commit fully to Alpine.js (aligns with CTFd 3.8.0+ core theme)
     - Effort: 6 hours
 
-- **Polling strategy scalability**
-    - Location: docker_challenges/assets/view.js:49-50
-    - Issue: Linear growth (1000 users = 2000 req/min), no backoff on errors
-    - Fix (short-term): Add exponential backoff
-    - Fix (long-term): Implement WebSocket/Server-Sent Events
-    - Effort: 2 hours (short-term), 16 hours (long-term)
-
 ## Feature Requests
 
 - Create secrets from CTFd into docker
@@ -202,7 +211,7 @@ All blocking, high-priority security, and high-priority maintainability issues h
 - Dynamic port pointing (avoid hardcoded port ranges)
 - Individual secret permissions (per-secret permission control)
 - Mark flags as secret (autocreate secrets from flag values)
-- WebSocket real-time updates (replace polling)
+- WebSocket/Server-Sent Events for real-time status updates (replace polling entirely for better scalability)
 - TypeScript migration for type safety
 - Database indexes for performance (team_id+challenge_id, timestamp)
 
@@ -222,15 +231,15 @@ All blocking, high-priority security, and high-priority maintainability issues h
 
 ## Summary Statistics
 
-**Total Issues**: 3 (21 fixed in this PR)
+**Total Issues**: 2 (22 fixed in this PR)
 
-- **Fixed in This PR**: 21 (4 blocking + 4 high-priority security + 5 maintainability + 4 UX/bug fixes + 4 code quality)
+- **Fixed in This PR**: 22 (4 blocking + 4 high-priority security + 5 maintainability + 4 UX/bug fixes + 4 code quality + 1 performance/scalability)
 - **Blocking**: 0 ✅
 - **High Priority**: 0 ✅ **ALL RESOLVED!**
 - **Active Bugs**: 1 (down from 2!)
-- **Suggestions/Tech Debt**: 2 (down from 7!)
+- **Suggestions/Tech Debt**: 1 (down from 7!)
 - **Feature Requests**: 9
 
 **Critical Path Complete!** All blocking and high-priority issues resolved. 🎉
 
-**Last Updated**: 2025-12-09 (Latest: MutationObserver refactoring for button detection)
+**Last Updated**: 2025-12-09 (Latest: Exponential backoff for status polling scalability)
