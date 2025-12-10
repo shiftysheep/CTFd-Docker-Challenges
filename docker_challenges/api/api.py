@@ -1,5 +1,7 @@
 import json
 import logging
+import re
+import traceback
 from datetime import datetime
 from typing import Any
 
@@ -373,10 +375,6 @@ class ImagePortsAPI(Resource):
 
     @admins_only
     def get(self):
-        import logging
-        import re
-        import traceback
-
         image = request.args.get("image")
         if not image:
             return {"success": False, "error": "Image parameter required"}, 400

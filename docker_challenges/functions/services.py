@@ -28,7 +28,7 @@ def _assign_service_ports(needed_ports: list, blocked_ports: list) -> list:
         assigned_port = None
         for _attempt in range(MAX_PORT_ASSIGNMENT_ATTEMPTS):
             # random.choice used for port assignment, not cryptographic purposes
-            candidate_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))  # noqa: S311
+            candidate_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))
             if candidate_port not in blocked_ports:
                 assigned_port = candidate_port
                 port_dict = {
@@ -104,7 +104,7 @@ def create_service(docker: DockerConfig, challenge_id: int, image: str, team: st
 
     # Generate unique service name
     # MD5 used for service naming only, not security
-    team_hash = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]  # noqa: S324
+    team_hash = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
     service_name = f"svc_{image.split(':')[1]}{team_hash}"
 
     # Assign available ports and build secrets list

@@ -36,8 +36,8 @@ def validate_exposed_ports(ports_string: str) -> None:
     ports = ports_string.split(",")
     valid_ports = []
 
-    for port_str in ports:
-        port_str = port_str.strip()
+    for port_entry in ports:
+        port_str = port_entry.strip()
         if not port_str:
             continue
 

@@ -1,4 +1,5 @@
 import logging
+from typing import ClassVar
 
 from CTFd.models import (
     ChallengeFiles,
@@ -25,13 +26,13 @@ from ..validators import validate_exposed_ports as _validate_exposed_ports
 class DockerServiceChallengeType(BaseChallenge):
     id = "docker_service"
     name = "docker_service"
-    templates = {
+    templates: ClassVar[dict[str, str]] = {
         "create": "/plugins/docker_challenges/assets/create_service.html",
         "update": "/plugins/docker_challenges/assets/update_service.html",
         "view": "/plugins/docker_challenges/assets/view.html",
     }
     # Scripts dictionary required for CTFd's getScript() loading mechanism
-    scripts = {
+    scripts: ClassVar[dict[str, str]] = {
         "create": "/plugins/docker_challenges/assets/stub_create_service.js",
         "update": "/plugins/docker_challenges/assets/stub_update_service.js",
         "view": "/plugins/docker_challenges/assets/view.js",
@@ -69,7 +70,7 @@ class DockerServiceChallengeType(BaseChallenge):
             try:
                 _validate_exposed_ports(data["exposed_ports"])
             except ValueError as e:
-                raise ValueError(f"Port validation failed: {str(e)}") from e
+                raise ValueError(f"Port validation failed: {e!s}") from e
 
         for attr, value in data.items():
             setattr(challenge, attr, value)
@@ -148,7 +149,7 @@ class DockerServiceChallengeType(BaseChallenge):
             try:
                 _validate_exposed_ports(data["exposed_ports"])
             except ValueError as e:
-                raise ValueError(f"Port validation failed: {str(e)}") from e
+                raise ValueError(f"Port validation failed: {e!s}") from e
 
         challenge = DockerServiceChallenge(**data)
         db.session.add(challenge)

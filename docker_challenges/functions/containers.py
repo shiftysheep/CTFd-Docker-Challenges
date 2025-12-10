@@ -47,7 +47,7 @@ def _assign_container_ports(needed_ports: list[str], blocked_ports: list[int]) -
         assigned_port = None
         for _attempt in range(MAX_PORT_ASSIGNMENT_ATTEMPTS):
             # random.choice used for port assignment, not cryptographic purposes
-            candidate_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))  # noqa: S311
+            candidate_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))
             if candidate_port not in blocked_ports:
                 assigned_port = candidate_port
                 assigned_ports[f"{assigned_port}/tcp"] = {}
@@ -71,7 +71,7 @@ def create_container(
 ) -> tuple[str, str]:
     needed_ports = get_required_ports(docker, image, exposed_ports)
     # MD5 used for container naming only, not security
-    team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]  # noqa: S324
+    team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
     container_name = "{}_{}".format(
         image.replace(":", "_").replace("/", "_").replace(".", "_"),
         team,

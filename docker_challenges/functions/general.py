@@ -47,7 +47,7 @@ def do_request(
     resp = []
     try:
         # Timeout is set in request_args above
-        resp = requests.request(**request_args)  # noqa: S113
+        resp = requests.request(**request_args)
     except ConnectionError:
         logging.error("Failed to establish a new connection. Connection refused.")
     except Timeout:
