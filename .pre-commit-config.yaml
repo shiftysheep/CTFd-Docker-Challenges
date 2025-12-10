@@ -1,0 +1,99 @@
+# Pre-commit hooks for CTFd Docker Challenges plugin
+# See https://pre-commit.com for more information
+
+repos:
+    # General file checks
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v5.0.0
+      hooks:
+          - id: check-yaml
+            args: ['--unsafe'] # Allow custom YAML tags
+          - id: end-of-file-fixer
+            exclude: ^(.*\.txt|test-images/.*)$
+          - id: trailing-whitespace
+            exclude: ^(.*\.(md|txt)|CLAUDE\.md)$
+          - id: check-ast
+          - id: check-json
+          - id: check-toml
+          - id: check-added-large-files
+            args: ['--maxkb=1000']
+          - id: detect-aws-credentials
+            args: ['--allow-missing-credentials']
+          - id: detect-private-key
+          - id: mixed-line-ending
+            args: ['--fix=lf']
+          - id: check-merge-conflict
+          - id: check-case-conflict
+          - id: pretty-format-json
+            args: ['--autofix']
+            exclude: ^docker_challenges/config\.json$
+
+    # Python formatting and linting - Ruff (replaces black, isort, flake8)
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      rev: v0.11.8
+      hooks:
+          # Run the linter
+          - id: ruff
+            args: [--fix]
+            files: ^docker_challenges/.*\.py$
+          # Run the formatter
+          - id: ruff-format
+            files: ^docker_challenges/.*\.py$
+
+    # Monitor code complexity
+    - repo: https://github.com/rubik/xenon
+      rev: v0.9.3
+      hooks:
+          - id: xenon
+            args: ['--max-absolute=B', '--max-modules=B', '--max-average=A']
+            files: ^docker_challenges/.*\.py$
+
+    # Detect dead code
+    - repo: https://github.com/jendrikseipp/vulture
+      rev: v2.14
+      hooks:
+          - id: vulture
+            args: ['--min-confidence', '80', 'docker_challenges/']
+
+    # Check for security issues
+    - repo: https://github.com/PyCQA/bandit
+      rev: 1.8.6
+      hooks:
+          - id: bandit
+            args: ['-c', 'pyproject.toml']
+            additional_dependencies: ['bandit[toml]']
+            files: ^docker_challenges/.*\.py$
+
+    # Enforce conventional commits - Commitizen
+    - repo: https://github.com/commitizen-tools/commitizen
+      rev: v4.9.1
+      hooks:
+          - id: commitizen
+            stages: [commit-msg]
+
+    # JavaScript/JSON/YAML formatting - Prettier
+    - repo: https://github.com/pre-commit/mirrors-prettier
+      rev: v4.0.0-alpha.8
+      hooks:
+          - id: prettier
+            types_or: [javascript, json, yaml, html, css, markdown]
+            exclude: ^(docker-compose.*\.yml|\.github/.*|test-images/.*|package-lock\.json)$
+            args:
+                - '--print-width=100'
+                - '--single-quote'
+                - '--trailing-comma=es5'
+                - '--tab-width=4'
+
+# Global excludes
+exclude: |
+    (?x)^(
+        .*\.pyc|
+        __pycache__/.*|
+        \.git/.*|
+        venv/.*|
+        \.venv/.*|
+        node_modules/.*|
+        \.pytest_cache/.*|
+        \.mypy_cache/.*|
+        test-images/.*
+    )$

@@ -1,4 +1,5 @@
-from flask import Blueprint
+import logging
+from typing import ClassVar
 
 from CTFd.models import (
     ChallengeFiles,
@@ -10,27 +11,30 @@ from CTFd.models import (
     Tags,
     db,
 )
-from CTFd.plugins.challenges import BaseChallenge
+from CTFd.plugins.challenges import BaseChallenge, ChallengeResponse
 from CTFd.plugins.flags import get_flag_class
-from CTFd.utils.config import is_teams_mode
 from CTFd.utils.uploads import delete_file
 from CTFd.utils.user import get_ip
+from flask import Blueprint
 
 from ..functions.containers import delete_container
-from ..models.models import DockerChallenge, DockerChallengeTracker, DockerConfig
+from ..functions.general import cleanup_container_on_solve
+from ..models.models import DockerChallenge, DockerConfig
+from ..validators import validate_exposed_ports as _validate_exposed_ports
 
 
 class DockerChallengeType(BaseChallenge):
     id = "docker"
     name = "docker"
-    templates = {
+    templates: ClassVar[dict[str, str]] = {
         "create": "/plugins/docker_challenges/assets/create.html",
         "update": "/plugins/docker_challenges/assets/update.html",
         "view": "/plugins/docker_challenges/assets/view.html",
     }
-    scripts = {
-        "create": "/plugins/docker_challenges/assets/create.js",
-        "update": "/plugins/docker_challenges/assets/update.js",
+    # Scripts dictionary required for CTFd's getScript() loading mechanism
+    scripts: ClassVar[dict[str, str]] = {
+        "create": "/plugins/docker_challenges/assets/stub_create.js",
+        "update": "/plugins/docker_challenges/assets/stub_update.js",
         "view": "/plugins/docker_challenges/assets/view.js",
     }
     route = "/plugins/docker_challenges/assets"
@@ -52,6 +56,14 @@ class DockerChallengeType(BaseChallenge):
         :return:
         """
         data = request.form or request.get_json()
+
+        # Validate exposed_ports if present in the update
+        if "exposed_ports" in data:
+            try:
+                _validate_exposed_ports(data["exposed_ports"])
+            except ValueError as e:
+                raise ValueError(f"Port validation failed: {e!s}") from e
+
         for attr, value in data.items():
             setattr(challenge, attr, value)
 
@@ -94,6 +106,7 @@ class DockerChallengeType(BaseChallenge):
             "name": challenge.name,
             "value": challenge.value,
             "docker_image": challenge.docker_image,
+            "exposed_ports": challenge.exposed_ports,
             "description": challenge.description,
             "category": challenge.category,
             "state": challenge.state,
@@ -118,6 +131,14 @@ class DockerChallengeType(BaseChallenge):
         """
         data = request.form or request.get_json()
         data["docker_type"] = "container"
+
+        # Validate exposed_ports
+        if "exposed_ports" in data:
+            try:
+                _validate_exposed_ports(data["exposed_ports"])
+            except ValueError as e:
+                raise ValueError(f"Port validation failed: {e!s}") from e
+
         challenge = DockerChallenge(**data)
         db.session.add(challenge)
         db.session.commit()
@@ -135,14 +156,14 @@ class DockerChallengeType(BaseChallenge):
         :return: (boolean, string)
         """
         data = request.form or request.get_json()
-        print(request.get_json())
-        print(data)
+        logging.debug(request.get_json())
+        logging.debug(data)
         submission = data["submission"].strip()
         flags = Flags.query.filter_by(challenge_id=challenge.id).all()
         for flag in flags:
             if get_flag_class(flag.type).compare(flag, submission):
-                return True, "Correct"
-        return False, "Incorrect"
+                return ChallengeResponse(status="correct", message="Correct")
+        return ChallengeResponse(status="incorrect", message="Incorrect")
 
     @staticmethod
     def solve(user, team, challenge, request):
@@ -158,28 +179,10 @@ class DockerChallengeType(BaseChallenge):
         submission = data["submission"].strip()
         docker = DockerConfig.query.filter_by(id=1).first()
         try:
-            if is_teams_mode():
-                docker_containers = (
-                    DockerChallengeTracker.query.filter_by(
-                        docker_image=challenge.docker_image
-                    )
-                    .filter_by(team_id=team.id)
-                    .first()
-                )
-            else:
-                docker_containers = (
-                    DockerChallengeTracker.query.filter_by(
-                        docker_image=challenge.docker_image
-                    )
-                    .filter_by(user_id=user.id)
-                    .first()
-                )
-            delete_container(docker, docker_containers.instance_id)
-            DockerChallengeTracker.query.filter_by(
-                instance_id=docker_containers.instance_id
-            ).delete()
-        except:
-            pass
+            cleanup_container_on_solve(docker, user, team, challenge, delete_container)
+        except Exception as e:
+            # Container may have already been deleted or never created
+            logging.debug(f"Failed to delete container on solve: {e}")
         solve = Solves(
             user_id=user.id,
             team_id=team.id if team else None,

@@ -1,19 +1,20 @@
 import logging
+from typing import Any, Callable
+
 import requests
+from CTFd.utils.config import is_teams_mode
 from requests import Response
 from requests.exceptions import RequestException, Timeout
 
-from ..models.models import DockerConfig
-
-logger = logging.getLogger(__name__)
+from ..models.models import DockerChallengeTracker, DockerConfig
 
 
 def do_request(
     docker: DockerConfig,
     url: str,
-    headers: dict = None,
+    headers: dict[str, str] | None = None,
     method: str = "GET",
-    data: dict | str = None,
+    data: dict | str | None = None,
 ) -> list | Response:
     tls = docker.tls_enabled
     prefix = "https" if tls else "http"
@@ -41,10 +42,11 @@ def do_request(
         request_args["cert"] = (docker.client_cert, docker.client_key)
         request_args["verify"] = docker.ca_cert
 
-    logging.info(f'Request to Docker: {request_args["method"]} {request_args["url"]}')
+    logging.info(f"Request to Docker: {request_args['method']} {request_args['url']}")
 
     resp = []
     try:
+        # Timeout is set in request_args above
         resp = requests.request(**request_args)
     except ConnectionError:
         logging.error("Failed to establish a new connection. Connection refused.")
@@ -57,13 +59,20 @@ def do_request(
 
 
 # For the Docker Config Page. Gets the Current Repositories available on the Docker Server.
-def get_repositories(docker: DockerConfig, tags=False, repos=False):
+def get_repositories(
+    docker: DockerConfig, tags: bool = False, repos: list[str] | str | None = None
+) -> list[str]:
     r = do_request(docker, "/images/json?all=1")
 
     if not r:
         return []
 
-    result = list()
+    # Convert repos to list if it's a comma-separated string
+    repos_list: list[str] | None = None
+    if repos:
+        repos_list = repos.split(",") if isinstance(repos, str) else repos
+
+    result = []
     for image in r.json():
         repo_tags = image.get("RepoTags")
         if not repo_tags:
@@ -72,7 +81,7 @@ def get_repositories(docker: DockerConfig, tags=False, repos=False):
         if image_name == "<none>":
             continue
 
-        if repos and image_name not in repos:
+        if repos_list and image_name not in repos_list:
             continue
         else:
             result.append(image_name if not tags else repo_tags[0])
@@ -98,32 +107,29 @@ def get_docker_info(docker: DockerConfig) -> str:
     return output
 
 
-def get_secrets(docker: DockerConfig):
+def get_secrets(docker: DockerConfig) -> list[dict[str, str]]:
     r = do_request(docker, "/secrets")
-    tmplist = list()
-    for secret in r.json():
-        tmpdict = {}
-        tmpdict["ID"] = secret["ID"]
-        tmpdict["Name"] = secret["Spec"]["Name"]
-        tmplist.append(tmpdict)
-    return tmplist
+    response_data = r.json()
 
-
-def delete_secret(docker: DockerConfig, id: str):
-    r = do_request(docker, f"/secrets/{id}", method="DELETE")
-    return r.ok
-
-
-def get_unavailable_ports(docker: DockerConfig):
-    r = do_request(docker, "/containers/json?all=1")
-
-    if not r:
-        print("Unable to get list of ports that are unavailable (containers)!")
+    # Handle error responses (e.g., when Docker is not in swarm mode)
+    if isinstance(response_data, dict) and "message" in response_data:
         return []
 
-    result = list()
-    for i in r.json():
-        ports = i.get("Ports")
+    secrets_list = []
+    for secret in response_data:
+        secret_dict = {
+            "ID": secret["ID"],
+            "Name": secret["Spec"]["Name"],
+        }
+        secrets_list.append(secret_dict)
+    return secrets_list
+
+
+def _extract_container_ports(containers_json: list[dict]) -> list[int]:
+    """Extract public ports from container list."""
+    result = []
+    for container in containers_json:
+        ports = container.get("Ports")
         if not ports:
             continue
 
@@ -131,19 +137,14 @@ def get_unavailable_ports(docker: DockerConfig):
             if port.get("PublicPort", 0):
                 result.append(port["PublicPort"])
 
-    r = do_request(docker, "/services?all=1")
-    if not r:
-        print("Unable to get list of ports that are unavailable (services)!")
-        return result
+    return result
 
-    rj = r.json()
-    if isinstance(rj, dict) and "This node is not a swarm manager." in rj.get(
-        "message"
-    ):
-        return result
 
-    for i in r.json():
-        endpoint = i.get("Endpoint", {}).get("Spec")
+def _extract_service_ports(services_json: list[dict]) -> list[int]:
+    """Extract published ports from service list."""
+    result = []
+    for service in services_json:
+        endpoint = service.get("Endpoint", {}).get("Spec")
         if not endpoint:
             continue
 
@@ -154,7 +155,100 @@ def get_unavailable_ports(docker: DockerConfig):
     return result
 
 
-def get_required_ports(docker, image):
-    r = do_request(docker, f"/images/{image}/json?all=1")
-    result = r.json()["Config"]["ExposedPorts"].keys()
+def get_unavailable_ports(docker: DockerConfig) -> list[int]:
+    """Get list of ports already in use by containers and services."""
+    # Get container ports
+    r = do_request(docker, "/containers/json?all=1")
+    if not r:
+        logging.error("Unable to get list of ports that are unavailable (containers)!")
+        return []
+
+    result = _extract_container_ports(r.json())
+
+    # Get service ports
+    r = do_request(docker, "/services?all=1")
+    if not r:
+        logging.error("Unable to get list of ports that are unavailable (services)!")
+        return result
+
+    rj = r.json()
+    if isinstance(rj, dict) and "This node is not a swarm manager." in rj.get("message"):
+        return result
+
+    result.extend(_extract_service_ports(rj))
     return result
+
+
+def get_required_ports(
+    docker: DockerConfig, image: str, challenge_ports: str | None = None
+) -> list[str]:
+    """
+    Get required ports for a challenge, merging image metadata and challenge configuration.
+
+    Args:
+        docker: DockerConfig object
+        image: Docker image name
+        challenge_ports: Optional comma-separated string of ports (e.g., "80/tcp,443/tcp")
+
+    Returns:
+        List of port specifications (e.g., ["80/tcp", "443/tcp"])
+    """
+    ports = set()
+
+    # Get ports from image metadata
+    r = do_request(docker, f"/images/{image}/json?all=1")
+    if r and hasattr(r, "json"):
+        config = r.json().get("Config", {})
+        exposed_ports = config.get("ExposedPorts")
+        if exposed_ports:
+            ports.update(exposed_ports.keys())
+
+    # Merge with challenge-configured ports
+    if challenge_ports and challenge_ports.strip():
+        configured = [p.strip() for p in challenge_ports.split(",") if p.strip()]
+        ports.update(configured)
+
+    return list(ports)
+
+
+def get_user_container(user: Any, team: Any, challenge: Any) -> DockerChallengeTracker | None:
+    """
+    Get the Docker container/service for the current user or team.
+
+    Args:
+        user: User object
+        team: Team object (or None)
+        challenge: Challenge object with docker_image attribute
+
+    Returns:
+        DockerChallengeTracker instance if found, None otherwise
+    """
+    query = DockerChallengeTracker.query.filter_by(docker_image=challenge.docker_image)
+
+    if is_teams_mode():
+        return query.filter_by(team_id=team.id).first()
+    else:
+        return query.filter_by(user_id=user.id).first()
+
+
+def cleanup_container_on_solve(
+    docker: DockerConfig,
+    user: Any,
+    team: Any,
+    challenge: Any,
+    delete_func: Callable[[DockerConfig, str], bool],
+) -> None:
+    """
+    Delete user's container/service when challenge is solved.
+
+    Args:
+        docker: DockerConfig instance
+        user: User object
+        team: Team object (or None)
+        challenge: Challenge object
+        delete_func: Function to call for deletion (delete_container or delete_service)
+    """
+    container = get_user_container(user, team, challenge)
+    if container:
+        delete_func(docker, container.instance_id)
+        DockerChallengeTracker.query.filter_by(instance_id=container.instance_id).delete()

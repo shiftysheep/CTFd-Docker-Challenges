@@ -1,8 +1,9 @@
-from wtforms import FileField, HiddenField, RadioField, SelectMultipleField, StringField
+from typing import ClassVar
 
 from CTFd.forms import BaseForm
 from CTFd.forms.fields import SubmitField
 from CTFd.models import Challenges, db
+from wtforms import FileField, HiddenField, RadioField, SelectMultipleField, StringField
 
 
 class DockerConfig(db.Model):
@@ -50,16 +51,18 @@ class DockerConfigForm(BaseForm):
 
 
 class DockerChallenge(Challenges):
-    __mapper_args__ = {"polymorphic_identity": "docker"}
+    __mapper_args__: ClassVar[dict[str, str]] = {"polymorphic_identity": "docker"}
     id = db.Column(None, db.ForeignKey("challenges.id"), primary_key=True)
     docker_type = db.Column(db.String(128), index=True)
     docker_image = db.Column(db.String(128), index=True)
+    exposed_ports = db.Column(db.Text, default="")
 
 
 class DockerServiceChallenge(Challenges):
-    __mapper_args__ = {"polymorphic_identity": "docker_service"}
+    __mapper_args__: ClassVar[dict[str, str]] = {"polymorphic_identity": "docker_service"}
     id = db.Column(None, db.ForeignKey("challenges.id"), primary_key=True)
     docker_type = db.Column(db.String(128), index=True)
     docker_image = db.Column(db.String(128), index=True)
     docker_secrets = db.Column(db.String(4096))
     protect_secrets = db.Column(db.Boolean, default=False)
+    exposed_ports = db.Column(db.Text, default="")

@@ -1,39 +1,87 @@
 import hashlib
 import json
+import logging
 import random
 
+from ..constants import (
+    MAX_PORT_ASSIGNMENT_ATTEMPTS,
+    PORT_ASSIGNMENT_MAX,
+    PORT_ASSIGNMENT_MIN,
+)
 from ..functions.general import do_request, get_required_ports
 from ..models.models import DockerConfig
 
 
-def find_existing(docker: DockerConfig, name: str):
+def find_existing(docker: DockerConfig, name: str) -> str | None:
+    """
+    Find existing Docker container by name.
+
+    Returns:
+        Container ID if found, None otherwise
+    """
     r = do_request(docker, url=f'/containers/json?all=1&filters={{"name":["{name}"]}}')
 
     if not r:
-        print("Failed to contact Docker!")
+        logging.error("Failed to contact Docker!")
 
     if len(r.json()) == 1:
         return r.json()[0]["Id"]
 
+    return None
 
-def create_container(docker: DockerConfig, image: str, team, portbl: list):
-    needed_ports = get_required_ports(docker, image)
+
+def _assign_container_ports(needed_ports: list[str], blocked_ports: list[int]) -> dict[str, dict]:
+    """
+    Assign random available ports from PORT_ASSIGNMENT_MIN-PORT_ASSIGNMENT_MAX range for containers.
+
+    Args:
+        needed_ports: List of port/protocol strings (e.g., ["80/tcp", "443/tcp"])
+        blocked_ports: List of ports already in use
+
+    Returns:
+        Dictionary mapping port strings to empty dicts for Docker PortBindings
+    """
+    assigned_ports = {}
+
+    for _i in needed_ports:
+        assigned_port = None
+        for _attempt in range(MAX_PORT_ASSIGNMENT_ATTEMPTS):
+            # random.choice used for port assignment, not cryptographic purposes
+            candidate_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))
+            if candidate_port not in blocked_ports:
+                assigned_port = candidate_port
+                assigned_ports[f"{assigned_port}/tcp"] = {}
+                break
+
+        if assigned_port is None:
+            raise RuntimeError(
+                f"Failed to find available port after {MAX_PORT_ASSIGNMENT_ATTEMPTS} attempts. "
+                f"Port range {PORT_ASSIGNMENT_MIN}-{PORT_ASSIGNMENT_MAX} may be exhausted."
+            )
+
+    return assigned_ports
+
+
+def create_container(
+    docker: DockerConfig,
+    image: str,
+    team: str,
+    portbl: list[int],
+    exposed_ports: str | None = None,
+) -> tuple[str, str]:
+    needed_ports = get_required_ports(docker, image, exposed_ports)
+    # MD5 used for container naming only, not security
     team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
-    container_name = "%s_%s" % (
+    container_name = "{}_{}".format(
         image.replace(":", "_").replace("/", "_").replace(".", "_"),
         team,
     )
-    assigned_ports = dict()
 
-    for i in needed_ports:
-        while True:
-            assigned_port = random.choice(range(30000, 60000))
-            if assigned_port not in portbl:
-                assigned_ports["%s/tcp" % assigned_port] = {}
-                break
+    # Assign random available ports
+    assigned_ports = _assign_container_ports(needed_ports, portbl)
 
-    ports = dict()
-    bindings = dict()
+    ports = {}
+    bindings = {}
     tmp_ports = list(assigned_ports.keys())
     for i in needed_ports:
         ports[i] = {}
@@ -43,7 +91,7 @@ def create_container(docker: DockerConfig, image: str, team, portbl: list):
             "Image": image,
             "ExposedPorts": ports,
             "HostConfig": {"PortBindings": bindings},
-            "AutoRemove": True
+            "AutoRemove": True,
         }
     )
 
@@ -53,16 +101,13 @@ def create_container(docker: DockerConfig, image: str, team, portbl: list):
         method="POST",
         data=data,
     )
-    if r.status_code == 409:
-        instance_id = find_existing(docker, container_name)
-    else:
-        instance_id = r.json()["Id"]
+    instance_id = find_existing(docker, container_name) if r.status_code == 409 else r.json()["Id"]
 
     do_request(docker, url=f"/containers/{instance_id}/start", method="POST")
 
     return instance_id, data
 
 
-def delete_container(docker, instance_id):
+def delete_container(docker: DockerConfig, instance_id: str) -> bool:
     r = do_request(docker, f"/containers/{instance_id}?force=true", method="DELETE")
     return r.ok

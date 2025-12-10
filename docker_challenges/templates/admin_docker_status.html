@@ -1,5 +1,4 @@
-{% extends 'admin/base.html' %}
-{% block content %}
+{% extends 'admin/base.html' %} {% block content %}
 <div class="jumbotron">
     <div class="container">
         <h1>Docker Status</h1>
@@ -12,180 +11,342 @@
             <div class="alert alert-danger alert-dismissable" role="alert">
                 <span class="sr-only">Error:</span>
                 {{ error }}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">×</span></button>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"
+                ></button>
             </div>
-            {% endfor %}
-            {% if dockers %}
-            <table id='dockers' class="table table-striped">
+            {% endfor %} {% if dockers %}
+            <table id="dockers" class="table table-striped">
                 <thead>
                     <tr>
-                        <th width="10px" class="text-center" style="cursor: pointer;" onclick="sortTable(0)">ID</th>
-                        <th class="text-left" style="cursor: pointer;" onclick="sortTable(1)">{% if dockers[0].team_id %}Team{% else %}User{% endif %}</th>
-                        <th class="text-left" style="cursor: pointer;" onclick="sortTable(2)">Docker Image</th>
-                        <th class="text-left" style="cursor: pointer;" onclick="sortTable(3)">Instance ID</th>
+                        <th
+                            width="10px"
+                            class="text-center"
+                            style="cursor: pointer"
+                            data-column="0"
+                        >
+                            ID
+                        </th>
+                        <th class="text-left" style="cursor: pointer" data-column="1">
+                            {% if dockers[0].team_id %}Team{% else %}User{% endif %}
+                        </th>
+                        <th class="text-left" style="cursor: pointer" data-column="2">
+                            Docker Image
+                        </th>
+                        <th class="text-left" style="cursor: pointer" data-column="3">
+                            Instance ID
+                        </th>
                         <th class="text-left">Revoke</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for docker in dockers %}
-                    <tr id='tr_{{docker.instance_id}}' name='{{docker.id}}'>
-                        <td class='text-center' value='{{docker.id}}'>{{docker.id}}</td>
+                    <tr id="tr_{{docker.instance_id}}" name="{{docker.id}}">
+                        <td class="text-center" value="{{docker.id}}">{{docker.id}}</td>
                         {% if docker.team_id %}
-                        <td class='text-center' value='{{docker.team_id | safe }}'>{{docker.team_id | safe }}</td>
+                        <td class="text-center" value="{{docker.team_id | safe }}">
+                            {{docker.team_id | safe }}
+                        </td>
                         {% else %}
-                        <td class='text-center' value='{{docker.team_id | safe }}'>{{docker.user_id | safe }}</td>
+                        <td class="text-center" value="{{docker.team_id | safe }}">
+                            {{docker.user_id | safe }}
+                        </td>
                         {% endif %}
-                        <td class='text-center' value='{{docker.docker_image}}'>{{docker.docker_image}}</td>
-                        <td class='text-center' value='{{docker.instance_id | truncate(15)}}'>{{docker.instance_id | truncate(15)}}</td>
-                        <td class='text-center'><a id="delete_{{docker.instance_id}}" style="cursor: pointer;" class="fas fa-trash" onclick="check_nuke_container('{{docker.instance_id}}', false)"></a></td>
+                        <td class="text-center" value="{{docker.docker_image}}">
+                            {{docker.docker_image}}
+                        </td>
+                        <td class="text-center" value="{{docker.instance_id | truncate(15)}}">
+                            {{docker.instance_id | truncate(15)}}
+                        </td>
+                        <td class="text-center">
+                            <a
+                                id="delete_{{docker.instance_id}}"
+                                style="cursor: pointer"
+                                class="fas fa-trash delete-container-btn"
+                                data-instance-id="{{docker.instance_id}}"
+                            ></a>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            <div class='text-center'>
-                <button type="button" class="btn btn-danger" onclick="check_nuke_container(null, true)">Nuke All Containers</button>
+            <div class="text-center">
+                <button type="button" class="btn btn-danger" id="nuke-all-btn">
+                    Nuke All Containers
+                </button>
             </div>
             {% else %}
-            <h3 class='text-center'> No Docker Containers Active</h3>
+            <h3 class="text-center">No Docker Containers Active</h3>
             {% endif %}
         </div>
     </div>
 </div>
-{% endblock content %}
-{% block scripts %}
+
+<!-- Alpine.js Modal Templates (CTFd Pattern) -->
+<div x-data>
+    <!-- Confirmation Modal -->
+    <div class="modal fade" x-ref="confirmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" x-text="$store.confirmModal.title"></h5>
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                    ></button>
+                </div>
+                <div class="modal-body">
+                    <p x-text="$store.confirmModal.body"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        No
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-danger"
+                        @click="$store.confirmModal.onConfirm(); $refs.confirmModal.dispatchEvent(new Event('hide.bs.modal'))"
+                    >
+                        Yes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div class="modal fade" x-ref="alertModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" x-text="$store.alertModal.title"></h5>
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                    ></button>
+                </div>
+                <div class="modal-body">
+                    <p x-text="$store.alertModal.body"></p>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        data-bs-dismiss="modal"
+                        x-text="$store.alertModal.button"
+                    ></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock content %} {% block scripts %}
 <script>
-function sortTable(n) {
-    var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
-    table = document.getElementById("dockers");
-    switching = true;
-    dir = "asc";
-    while (switching) {
-        switching = false;
-        rows = table.rows;
-        for (i = 1; i < (rows.length - 1); i++) {
-            shouldSwitch = false;
-            x = rows[i].getElementsByTagName("TD")[n];
-            y = rows[i + 1].getElementsByTagName("TD")[n];
-            if (dir == "asc") {
-                if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
-                    shouldSwitch = true;
-                    break;
-                }
-            } else if (dir == "desc") {
-                if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
-                    shouldSwitch = true;
-                    break;
+    // Attach event listeners to table headers for sorting
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('#dockers thead th[data-column]').forEach((th) => {
+            th.addEventListener('click', function () {
+                const columnIndex = parseInt(this.getAttribute('data-column'));
+                sortTable(columnIndex);
+            });
+        });
+
+        // Attach event listeners to delete buttons
+        document.querySelectorAll('.delete-container-btn').forEach((btn) => {
+            btn.addEventListener('click', function () {
+                const instanceId = this.getAttribute('data-instance-id');
+                check_nuke_container(instanceId, false);
+            });
+        });
+
+        // Attach event listener to nuke all button
+        const nukeAllBtn = document.getElementById('nuke-all-btn');
+        if (nukeAllBtn) {
+            nukeAllBtn.addEventListener('click', function () {
+                check_nuke_container(null, true);
+            });
+        }
+    });
+
+    function sortTable(n) {
+        var table,
+            rows,
+            switching,
+            i,
+            x,
+            y,
+            shouldSwitch,
+            dir,
+            switchcount = 0;
+        table = document.getElementById('dockers');
+        switching = true;
+        dir = 'asc';
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < rows.length - 1; i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName('TD')[n];
+                y = rows[i + 1].getElementsByTagName('TD')[n];
+                if (dir == 'asc') {
+                    if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir == 'desc') {
+                    if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
                 }
             }
-        }
-        if (shouldSwitch) {
-            rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-            switching = true;
-            switchcount++;
-        } else {
-            if (switchcount == 0 && dir == "asc") {
-                dir = "desc";
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
                 switching = true;
+                switchcount++;
+            } else {
+                if (switchcount == 0 && dir == 'asc') {
+                    dir = 'desc';
+                    switching = true;
+                }
             }
         }
     }
-}
 </script>
 <script>
-function check_nuke_container(instance, all) {
-    ezq({
-        title: "Attention!",
-        body: "Are You Sure You want to do this?",
-        success: function() { nuke_container(instance, all) },
-    });
-}
+    function check_nuke_container(instance, all) {
+        ezq({
+            title: 'Attention!',
+            body: 'Are You Sure You want to do this?',
+            success: function () {
+                nuke_container(instance, all);
+            },
+        });
+    }
 
-function nuke_container(instance, all) {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            if (all == true) {
-                window.location = '{{ script_root }}/admin/docker_status'
-            }
-            else {
-                document.getElementById("tr_" + instance).style.display = "none";
-            }
-        } else if (this.readyState == 4 && this.status != 200) {
-            ezal({
-                title: "Attention!",
-                body: "Error when Deleting Docker Container",
-                button: "Got it!",
+    function nuke_container(instance, all) {
+        fetch('/api/v1/nuke', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'CSRF-Token': init.csrfNonce,
+            },
+            body: JSON.stringify({
+                container: instance,
+                all: all,
+            }),
+        })
+            .then((response) => {
+                if (response.ok) {
+                    if (all == true) {
+                        window.location = '{{ script_root }}/admin/docker_status';
+                    } else {
+                        document.getElementById('tr_' + instance).style.display = 'none';
+                    }
+                } else {
+                    throw new Error('Failed to delete container');
+                }
+            })
+            .catch((error) => {
+                ezal({
+                    title: 'Attention!',
+                    body: 'Error when Deleting Docker Container',
+                    button: 'Got it!',
+                });
+            });
+    }
+</script>
+<script>
+    // Initialize Alpine.js stores for modals (CTFd Pattern)
+    // Initialize immediately to avoid undefined store errors
+    if (typeof Alpine !== 'undefined') {
+        Alpine.store('confirmModal', {
+            title: '',
+            body: '',
+            onConfirm: () => {},
+        });
+
+        Alpine.store('alertModal', {
+            title: '',
+            body: '',
+            button: 'Got it!',
+        });
+    }
+
+    // Also listen for alpine:init in case Alpine loads later
+    document.addEventListener('alpine:init', () => {
+        if (!Alpine.store('confirmModal')) {
+            Alpine.store('confirmModal', {
+                title: '',
+                body: '',
+                onConfirm: () => {},
             });
         }
-    };
-    xhttp.open("GET", "/api/v1/nuke?container=" + instance + "&all=" + all, true);
-    xhttp.send();
-}
-</script>
-<script>
-var modal =
-    '<div class="modal fade" tabindex="-1" role="dialog">' +
-    '  <div class="modal-dialog" role="document">' +
-    '    <div class="modal-content">' +
-    '      <div class="modal-header">' +
-    '        <h5 class="modal-title">{0}</h5>' +
-    '        <button type="button" class="close" data-dismiss="modal" aria-label="Close">' +
-    '          <span aria-hidden="true">&times;</span>' +
-    "        </button>" +
-    "      </div>" +
-    '      <div class="modal-body">' +
-    "        <p>{1}</p>" +
-    "      </div>" +
-    '      <div class="modal-footer">' +
-    "      </div>" +
-    "    </div>" +
-    "  </div>" +
-    "</div>";
 
-function ezq(args) {
-    var res = modal.format(args.title, args.body);
-    var obj = $(res);
-    var deny =
-        '<button type="button" class="btn btn-danger" data-dismiss="modal">No</button>';
-    var confirm = $(
-        '<button type="button" class="btn btn-primary" data-dismiss="modal">Yes</button>'
-    );
-
-    obj.find(".modal-footer").append(deny);
-    obj.find(".modal-footer").append(confirm);
-
-    $("main").append(obj);
-
-    $(obj).on("hidden.bs.modal", function(e) {
-        $(this).modal("dispose");
+        if (!Alpine.store('alertModal')) {
+            Alpine.store('alertModal', {
+                title: '',
+                body: '',
+                button: 'Got it!',
+            });
+        }
     });
 
-    $(confirm).click(function() {
-        args.success();
-    });
+    // Check if Alpine.js and Bootstrap are available
+    function hasAlpineAndBootstrap() {
+        return typeof Alpine !== 'undefined' && typeof bootstrap !== 'undefined' && bootstrap.Modal;
+    }
 
-    obj.modal("show");
+    // Confirmation modal function (CTFd Pattern with Alpine.js)
+    function ezq(args) {
+        if (!hasAlpineAndBootstrap()) {
+            // Fallback to native confirm
+            if (confirm(args.title + '\n\n' + args.body)) {
+                args.success();
+            }
+            return;
+        }
 
-    return obj;
-}
+        // Set Alpine store data
+        Alpine.store('confirmModal', {
+            title: args.title,
+            body: args.body,
+            onConfirm: args.success,
+        });
 
-function ezal(args) {
-    var res = modal.format(args.title, args.body);
-    var obj = $(res);
-    var button = '<button type="button" class="btn btn-primary" data-dismiss="modal">{0}</button>'.format(
-        args.button
-    );
+        // Show modal using Bootstrap Modal API
+        const modalElement = document.querySelector('[x-ref="confirmModal"]');
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
 
-    obj.find(".modal-footer").append(button);
-    $("main").append(obj);
+    // Alert modal function (CTFd Pattern with Alpine.js)
+    function ezal(args) {
+        if (!hasAlpineAndBootstrap()) {
+            // Fallback to native alert
+            alert(args.title + '\n\n' + args.body);
+            return;
+        }
 
-    obj.modal("show");
+        // Set Alpine store data
+        Alpine.store('alertModal', {
+            title: args.title,
+            body: args.body,
+            button: args.button || 'Got it!',
+        });
 
-    $(obj).on("hidden.bs.modal", function(e) {
-        $(this).modal("dispose");
-    });
-
-    return obj;
-}
+        // Show modal using Bootstrap Modal API
+        const modalElement = document.querySelector('[x-ref="alertModal"]');
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
 </script>
 {% endblock scripts %}

@@ -1,121 +1,243 @@
-CTFd._internal.challenge.data = undefined
+// Inline constants (cannot use ES6 imports due to Alpine.js race condition)
+// See CLAUDE.md for explanation of why ES6 modules don't work for challenge views
+const CONTAINER_POLL_INTERVAL_MS = 30000; // 30 seconds (base interval)
+const CONTAINER_POLL_MAX_INTERVAL_MS = 300000; // 5 minutes (max backoff)
+const CONTAINER_POLL_BACKOFF_MULTIPLIER = 2; // Double interval on each failure
+const MS_PER_SECOND = 1000;
+
+CTFd._internal.challenge.data = undefined;
 
 CTFd._internal.challenge.renderer = null;
 
-
-CTFd._internal.challenge.preRender = function() {}
+CTFd._internal.challenge.preRender = function () {};
 
 CTFd._internal.challenge.render = null;
 
+CTFd._internal.challenge.postRender = function () {};
 
-CTFd._internal.challenge.postRender = function() {}
-
-
-CTFd._internal.challenge.submit = function(preview) {
-    var challenge_id = parseInt(CTFd.lib.$('#challenge-id').val())
-    var submission = CTFd.lib.$('#challenge-input').val()
+CTFd._internal.challenge.submit = function (preview) {
+    var challenge_id = parseInt(CTFd.lib.$('#challenge-id').val());
+    var submission = CTFd.lib.$('#challenge-input').val();
 
     var body = {
-        'challenge_id': challenge_id,
-        'submission': submission,
-    }
-    var params = {}
+        challenge_id: challenge_id,
+        submission: submission,
+    };
+    var params = {};
     if (preview) {
-        params['preview'] = true
+        params['preview'] = true;
     }
 
-    return CTFd.api.post_challenge_attempt(params, body).then(function(response) {
+    return CTFd.api.post_challenge_attempt(params, body).then(function (response) {
         if (response.status === 429) {
             // User was ratelimited but process response
-            return response
+            return response;
         }
         if (response.status === 403) {
             // User is not logged in or CTF is paused.
-            return response
+            return response;
         }
-        return response
-    })
+        return response;
+    });
 };
 
-function get_docker_status(container,challenge_id) {
-    $.get("/api/v1/docker_status", function(result) {
-        $.each(result['data'], function(i, item) {
-            if (item.challenge_id == challenge_id && item.docker_image == container)  {
-                var ports = String(item.ports).split(',');
-                var data = '';
-                $.each(ports, function(x, port) {
-                    port = String(port)
-                    data = data + 'Host: ' + item.host + ' Port: ' + port + '<br />';
-                })
-                $('#docker_container').html('<pre>Docker Container Information:<br />' + data + '<div class="mt-2" id="' + String(item.instance_id).substring(0,10) + '_revert_container"></div>');
-                var countDownDate = new Date(parseInt(item.revert_time) * 1000).getTime();
-                var x = setInterval(function() {
-                    var now = new Date().getTime();
-                    var distance = countDownDate - now;
-                    var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                    var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-                    if (seconds < 10) {
-                        seconds = "0" + seconds
+// Alpine.js component factory for container status management
+function containerStatus(container, challengeId) {
+    return {
+        containerRunning: false,
+        host: '',
+        ports: '',
+        revertTime: null,
+        countdownText: '',
+        countdownInterval: null,
+        // Exponential backoff state
+        currentPollInterval: CONTAINER_POLL_INTERVAL_MS,
+        pollTimeoutId: null,
+        consecutiveFailures: 0,
+
+        async init() {
+            await this.pollStatus();
+            // Schedule next poll with dynamic interval
+            this.schedulePoll();
+        },
+
+        /**
+         * Schedule the next status poll with current interval
+         * Uses setTimeout for dynamic interval adjustment
+         */
+        schedulePoll() {
+            // Clear any existing timeout
+            if (this.pollTimeoutId) {
+                clearTimeout(this.pollTimeoutId);
+            }
+
+            this.pollTimeoutId = setTimeout(() => this.pollStatus(), this.currentPollInterval);
+        },
+
+        /**
+         * Calculate next poll interval with exponential backoff
+         * Doubles interval on each failure, capped at CONTAINER_POLL_MAX_INTERVAL_MS
+         */
+        calculateBackoffInterval() {
+            const nextInterval = this.currentPollInterval * CONTAINER_POLL_BACKOFF_MULTIPLIER;
+            return Math.min(nextInterval, CONTAINER_POLL_MAX_INTERVAL_MS);
+        },
+
+        /**
+         * Reset polling interval to base value after successful poll
+         */
+        resetPollInterval() {
+            this.currentPollInterval = CONTAINER_POLL_INTERVAL_MS;
+            this.consecutiveFailures = 0;
+        },
+
+        async pollStatus() {
+            try {
+                const response = await fetch('/api/v1/docker_status');
+                const result = await response.json();
+
+                if (result.data && result.data.length > 0) {
+                    const containerInfo = result.data.find(
+                        (item) => item.challenge_id == challengeId && item.docker_image == container
+                    );
+
+                    if (containerInfo) {
+                        this.containerRunning = true;
+                        this.host = containerInfo.host;
+                        this.ports = String(containerInfo.ports);
+                        this.revertTime = parseInt(containerInfo.revert_time) * MS_PER_SECOND; // Convert to milliseconds
+                        this.updateCountdown();
+                    } else {
+                        this.containerRunning = false;
                     }
-                    $("#" + String(item.instance_id).substring(0,10) + "_revert_container").html('Next Revert Available in ' + minutes + ':' + seconds);
-                    if (distance < 0) {
-                        clearInterval(x);
-                        $("#" + String(item.instance_id).substring(0,10) + "_revert_container").html('<a onclick="start_container(\'' + container + '\',\'' + challenge_id + '\');" class=\'btn btn-dark\'><small style=\'color:white;\'><i class="fas fa-redo"></i> Revert</small></a>');
-                    }
-                }, 1000);
-                return false;
+                }
+
+                // Success - reset backoff interval
+                this.resetPollInterval();
+            } catch (error) {
+                console.error('Error polling status:', error);
+
+                // Increment failure count and apply exponential backoff
+                this.consecutiveFailures++;
+                this.currentPollInterval = this.calculateBackoffInterval();
+
+                console.log(
+                    `Poll failed (${this.consecutiveFailures} consecutive). ` +
+                        `Next poll in ${this.currentPollInterval / 1000}s`
+                );
+
+                // Only show alert if this is a persistent error (after initial load)
+                if (this.containerRunning) {
+                    ezal({
+                        title: 'Status Update Failed',
+                        body: 'Could not refresh container status. Your container may still be running, but the displayed information might be outdated.',
+                        button: 'Got it!',
+                    });
+                }
+            } finally {
+                // Schedule next poll regardless of success/failure
+                this.schedulePoll();
+            }
+        },
+
+        updateCountdown() {
+            // Clear any existing interval
+            if (this.countdownInterval) {
+                clearTimeout(this.countdownInterval);
+            }
+
+            const updateTimer = () => {
+                const now = Date.now();
+                const distance = this.revertTime - now;
+
+                if (distance <= 0) {
+                    this.countdownText = 'Revert Available';
+                    return;
+                }
+
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                const secondsStr = seconds < 10 ? '0' + seconds : seconds;
+
+                this.countdownText = 'Next Revert Available in ' + minutes + ':' + secondsStr;
+
+                // Recursively call after 1 second
+                this.countdownInterval = setTimeout(updateTimer, 1000);
             };
-        });
-    });
-};
 
-function start_container(container, challenge_id) {
-    $('#docker_container').html('<div class="text-center"><i class="fas fa-circle-notch fa-spin fa-1x"></i></div>');
-    $.get("/api/v1/container", { 'id': challenge_id }, function(result) {
-            get_docker_status(container, challenge_id);
-        })
-        .fail(function(jqxhr, settings, ex) {
-            ezal({
-                title: "Attention!",
-                body: "You can only revert a container once per 5 minutes! Please be patient.",
-                button: "Got it!"
-            });
-            $(get_docker_status(container, challenge_id));
-        });
+            updateTimer();
+        },
+
+        async startContainer() {
+            try {
+                await fetch('/api/v1/container?id=' + challengeId);
+                await this.pollStatus();
+            } catch (error) {
+                ezal({
+                    title: 'Attention!',
+                    body: 'You can only revert a container once per 5 minutes! Please be patient.',
+                    button: 'Got it!',
+                });
+                await this.pollStatus();
+            }
+        },
+
+        getConnectionInfo() {
+            if (!this.containerRunning) return '';
+
+            const portList = this.ports.split(',');
+            const lines = portList.map((port) => `Host: ${this.host} Port: ${port.trim()}`);
+            return 'Docker Container Information:\n' + lines.join('\n');
+        },
+    };
 }
 
+// Initialize Alpine.js store for alert modal (CTFd Pattern)
+// Initialize immediately to avoid undefined store errors
+if (typeof Alpine !== 'undefined') {
+    Alpine.store('alertModal', {
+        title: '',
+        body: '',
+        button: 'Got it!',
+    });
+}
+
+// Also listen for alpine:init in case Alpine loads later
+document.addEventListener('alpine:init', () => {
+    if (!Alpine.store('alertModal')) {
+        Alpine.store('alertModal', {
+            title: '',
+            body: '',
+            button: 'Got it!',
+        });
+    }
+});
+
+// Check if Alpine.js and Bootstrap are available
+function hasAlpineAndBootstrap() {
+    return typeof Alpine !== 'undefined' && typeof bootstrap !== 'undefined' && bootstrap.Modal;
+}
+
+// Alert modal function (CTFd Pattern with Alpine.js)
 function ezal(args) {
-    var res = `
-    <div class="modal fade" tabindex="-1" role="dialog">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">${args.title}</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body">
-            <p>${args.body}</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-primary" data-dismiss="modal">${args.button}</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-    var obj = $(res);
-    var button = `<button type="button" class="btn btn-primary" data-dismiss="modal">${args.button}</button>`;
+    if (!hasAlpineAndBootstrap()) {
+        // Fallback to native alert
+        alert(args.title + '\n\n' + args.body);
+        return;
+    }
 
-    obj.find(".modal-footer").append(button);
-    $("main").append(obj);
-
-    obj.modal("show");
-
-    $(obj).on("hidden.bs.modal", function(e) {
-        $(this).modal("dispose");
+    // Set Alpine store data
+    Alpine.store('alertModal', {
+        title: args.title,
+        body: args.body,
+        button: args.button || 'Got it!',
     });
 
-    return obj;
+    // Show modal using Bootstrap Modal API
+    const modalElement = document.querySelector('[x-ref="alertModal"]');
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
 }
+
+// Expose containerStatus to global scope for Alpine.js x-data directives
+window.containerStatus = containerStatus;
