@@ -12,7 +12,13 @@ from ..functions.general import do_request, get_required_ports
 from ..models.models import DockerConfig
 
 
-def find_existing(docker: DockerConfig, name: str):
+def find_existing(docker: DockerConfig, name: str) -> str | None:
+    """
+    Find existing Docker container by name.
+
+    Returns:
+        Container ID if found, None otherwise
+    """
     r = do_request(docker, url=f'/containers/json?all=1&filters={{"name":["{name}"]}}')
 
     if not r:
@@ -21,15 +27,20 @@ def find_existing(docker: DockerConfig, name: str):
     if len(r.json()) == 1:
         return r.json()[0]["Id"]
 
+    return None
 
-def create_container(docker: DockerConfig, image: str, team, portbl: list, exposed_ports=None):
-    needed_ports = get_required_ports(docker, image, exposed_ports)
-    # MD5 used for container naming only, not security
-    team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]  # noqa: S324
-    container_name = "{}_{}".format(
-        image.replace(":", "_").replace("/", "_").replace(".", "_"),
-        team,
-    )
+
+def _assign_container_ports(needed_ports: list[str], blocked_ports: list[int]) -> dict[str, dict]:
+    """
+    Assign random available ports from PORT_ASSIGNMENT_MIN-PORT_ASSIGNMENT_MAX range for containers.
+
+    Args:
+        needed_ports: List of port/protocol strings (e.g., ["80/tcp", "443/tcp"])
+        blocked_ports: List of ports already in use
+
+    Returns:
+        Dictionary mapping port strings to empty dicts for Docker PortBindings
+    """
     assigned_ports = {}
 
     for _i in needed_ports:
@@ -37,7 +48,7 @@ def create_container(docker: DockerConfig, image: str, team, portbl: list, expos
         for _attempt in range(MAX_PORT_ASSIGNMENT_ATTEMPTS):
             # random.choice used for port assignment, not cryptographic purposes
             candidate_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))  # noqa: S311
-            if candidate_port not in portbl:
+            if candidate_port not in blocked_ports:
                 assigned_port = candidate_port
                 assigned_ports[f"{assigned_port}/tcp"] = {}
                 break
@@ -47,6 +58,27 @@ def create_container(docker: DockerConfig, image: str, team, portbl: list, expos
                 f"Failed to find available port after {MAX_PORT_ASSIGNMENT_ATTEMPTS} attempts. "
                 f"Port range {PORT_ASSIGNMENT_MIN}-{PORT_ASSIGNMENT_MAX} may be exhausted."
             )
+
+    return assigned_ports
+
+
+def create_container(
+    docker: DockerConfig,
+    image: str,
+    team: str,
+    portbl: list[int],
+    exposed_ports: str | None = None,
+) -> tuple[str, str]:
+    needed_ports = get_required_ports(docker, image, exposed_ports)
+    # MD5 used for container naming only, not security
+    team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]  # noqa: S324
+    container_name = "{}_{}".format(
+        image.replace(":", "_").replace("/", "_").replace(".", "_"),
+        team,
+    )
+
+    # Assign random available ports
+    assigned_ports = _assign_container_ports(needed_ports, portbl)
 
     ports = {}
     bindings = {}

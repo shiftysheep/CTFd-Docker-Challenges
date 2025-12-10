@@ -12,13 +12,13 @@ from CTFd.models import (
 )
 from CTFd.plugins.challenges import BaseChallenge, ChallengeResponse
 from CTFd.plugins.flags import get_flag_class
-from CTFd.utils.config import is_teams_mode
 from CTFd.utils.uploads import delete_file
 from CTFd.utils.user import get_ip
 from flask import Blueprint
 
 from ..functions.containers import delete_container
-from ..models.models import DockerChallenge, DockerChallengeTracker, DockerConfig
+from ..functions.general import cleanup_container_on_solve
+from ..models.models import DockerChallenge, DockerConfig
 from ..validators import validate_exposed_ports as _validate_exposed_ports
 
 
@@ -178,22 +178,7 @@ class DockerChallengeType(BaseChallenge):
         submission = data["submission"].strip()
         docker = DockerConfig.query.filter_by(id=1).first()
         try:
-            if is_teams_mode():
-                docker_containers = (
-                    DockerChallengeTracker.query.filter_by(docker_image=challenge.docker_image)
-                    .filter_by(team_id=team.id)
-                    .first()
-                )
-            else:
-                docker_containers = (
-                    DockerChallengeTracker.query.filter_by(docker_image=challenge.docker_image)
-                    .filter_by(user_id=user.id)
-                    .first()
-                )
-            delete_container(docker, docker_containers.instance_id)
-            DockerChallengeTracker.query.filter_by(
-                instance_id=docker_containers.instance_id
-            ).delete()
+            cleanup_container_on_solve(docker, user, team, challenge, delete_container)
         except Exception as e:
             # Container may have already been deleted or never created
             logging.debug(f"Failed to delete container on solve: {e}")

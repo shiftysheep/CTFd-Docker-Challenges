@@ -4,7 +4,7 @@ import requests
 from requests import Response
 from requests.exceptions import RequestException, Timeout
 
-from ..models.models import DockerConfig
+from ..models.models import DockerChallengeTracker, DockerConfig
 
 
 def do_request(
@@ -108,16 +108,17 @@ def get_secrets(docker: DockerConfig) -> list[dict[str, str]]:
     if isinstance(response_data, dict) and "message" in response_data:
         return []
 
-    tmplist = []
+    secrets_list = []
     for secret in response_data:
-        tmpdict = {}
-        tmpdict["ID"] = secret["ID"]
-        tmpdict["Name"] = secret["Spec"]["Name"]
-        tmplist.append(tmpdict)
-    return tmplist
+        secret_dict = {
+            "ID": secret["ID"],
+            "Name": secret["Spec"]["Name"],
+        }
+        secrets_list.append(secret_dict)
+    return secrets_list
 
 
-def _extract_container_ports(containers_json: list) -> list:
+def _extract_container_ports(containers_json: list[dict]) -> list[int]:
     """Extract public ports from container list."""
     result = []
     for container in containers_json:
@@ -132,7 +133,7 @@ def _extract_container_ports(containers_json: list) -> list:
     return result
 
 
-def _extract_service_ports(services_json: list) -> list:
+def _extract_service_ports(services_json: list[dict]) -> list[int]:
     """Extract published ports from service list."""
     result = []
     for service in services_json:
@@ -201,3 +202,42 @@ def get_required_ports(
         ports.update(configured)
 
     return list(ports)
+
+
+def get_user_container(user, team, challenge) -> DockerChallengeTracker | None:
+    """
+    Get the Docker container/service for the current user or team.
+
+    Args:
+        user: User object
+        team: Team object (or None)
+        challenge: Challenge object with docker_image attribute
+
+    Returns:
+        DockerChallengeTracker instance if found, None otherwise
+    """
+    from CTFd.utils.config import is_teams_mode
+
+    query = DockerChallengeTracker.query.filter_by(docker_image=challenge.docker_image)
+
+    if is_teams_mode():
+        return query.filter_by(team_id=team.id).first()
+    else:
+        return query.filter_by(user_id=user.id).first()
+
+
+def cleanup_container_on_solve(docker: DockerConfig, user, team, challenge, delete_func) -> None:
+    """
+    Delete user's container/service when challenge is solved.
+
+    Args:
+        docker: DockerConfig instance
+        user: User object
+        team: Team object (or None)
+        challenge: Challenge object
+        delete_func: Function to call for deletion (delete_container or delete_service)
+    """
+    container = get_user_container(user, team, challenge)
+    if container:
+        delete_func(docker, container.instance_id)
+        DockerChallengeTracker.query.filter_by(instance_id=container.instance_id).delete()

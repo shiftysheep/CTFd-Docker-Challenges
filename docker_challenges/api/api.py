@@ -308,18 +308,18 @@ class DockerStatus(Resource):
             session = get_current_user()
             tracker = DockerChallengeTracker.query.filter_by(user_id=session.id)
         data = []
-        for i in tracker:
+        for tracker_entry in tracker:
             data.append(
                 {
-                    "id": i.id,
-                    "team_id": i.team_id,
-                    "user_id": i.user_id,
-                    "challenge_id": i.challenge_id,
-                    "docker_image": i.docker_image,
-                    "timestamp": i.timestamp,
-                    "revert_time": i.revert_time,
-                    "instance_id": i.instance_id,
-                    "ports": i.ports.split(","),
+                    "id": tracker_entry.id,
+                    "team_id": tracker_entry.team_id,
+                    "user_id": tracker_entry.user_id,
+                    "challenge_id": tracker_entry.challenge_id,
+                    "docker_image": tracker_entry.docker_image,
+                    "timestamp": tracker_entry.timestamp,
+                    "revert_time": tracker_entry.revert_time,
+                    "instance_id": tracker_entry.instance_id,
+                    "ports": tracker_entry.ports.split(","),
                     "host": str(docker.hostname).split(":")[0],
                 }
             )
