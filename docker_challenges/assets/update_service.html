@@ -92,8 +92,5 @@
     var DOCKER_IMAGE = '{{ challenge.docker_image }}';
     var SECRETS = '{{ challenge.docker_secrets }}';
 </script>
-<script
-    type="module"
-    src="{{ url_for('docker_service_challenges.static', filename='update_service.js') }}"
-></script>
+<script type="module" src="/plugins/docker_challenges/assets/update_service.js"></script>
 {% endblock %}

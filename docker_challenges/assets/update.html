@@ -54,8 +54,5 @@
 <script>
     var DOCKER_IMAGE = '{{ challenge.docker_image }}';
 </script>
-<script
-    type="module"
-    src="{{ url_for('docker_challenges.static', filename='update.js') }}"
-></script>
+<script type="module" src="/plugins/docker_challenges/assets/update.js"></script>
 {% endblock %}

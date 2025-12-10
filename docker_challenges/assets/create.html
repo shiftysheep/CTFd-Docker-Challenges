@@ -51,8 +51,5 @@
 {% endblock %} {% block type %}
 <input type="hidden" name="type" value="docker" id="chaltype" />
 {% endblock %} {% block footer %}
-<script
-    type="module"
-    src="{{ url_for('docker_challenges.static', filename='create.js') }}"
-></script>
+<script type="module" src="/plugins/docker_challenges/assets/create.js"></script>
 {% endblock %}
