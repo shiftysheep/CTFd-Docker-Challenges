@@ -1,4 +1,5 @@
 import logging
+import re
 
 from CTFd.models import (
     ChallengeFiles,
@@ -19,6 +20,56 @@ from flask import Blueprint
 
 from ..functions.services import delete_service
 from ..models.models import DockerChallengeTracker, DockerConfig, DockerServiceChallenge
+
+
+def _validate_exposed_ports(ports_string):
+    """
+    Validate exposed ports format and values.
+
+    Args:
+        ports_string: Comma-separated string of ports (e.g., "80/tcp,443/tcp,53/udp")
+
+    Raises:
+        ValueError: If validation fails with descriptive error message
+    """
+    if not ports_string or not ports_string.strip():
+        raise ValueError(
+            "At least one exposed port must be configured. "
+            "Please add a port in the format: port/protocol (e.g., 80/tcp)"
+        )
+
+    # Pattern matches: port/protocol where port is 1-65535, protocol is tcp/udp
+    port_pattern = re.compile(r"^(\d+)/(tcp|udp)$", re.IGNORECASE)
+
+    ports = ports_string.split(",")
+    valid_ports = []
+
+    for port_str in ports:
+        port_str = port_str.strip()
+        if not port_str:
+            continue
+
+        match = port_pattern.match(port_str)
+        if not match:
+            raise ValueError(
+                f"Invalid port format: '{port_str}'. "
+                "Expected format: port/protocol (e.g., 80/tcp, 443/tcp, 53/udp)"
+            )
+
+        port_num = int(match.group(1))
+        if port_num < 1 or port_num > 65535:
+            raise ValueError(
+                f"Port number {port_num} is out of valid range. "
+                "Port numbers must be between 1 and 65535."
+            )
+
+        valid_ports.append(port_str)
+
+    if not valid_ports:
+        raise ValueError(
+            "At least one valid port must be configured. "
+            "Ports must be in the format: port/protocol (e.g., 80/tcp)"
+        )
 
 
 class DockerServiceChallengeType(BaseChallenge):
@@ -61,6 +112,14 @@ class DockerServiceChallengeType(BaseChallenge):
         data["docker_type"] = "service"
         if data.get("docker_secrets_array", None):
             del data["docker_secrets_array"]
+
+        # Validate exposed_ports if present in the update
+        if "exposed_ports" in data:
+            try:
+                _validate_exposed_ports(data["exposed_ports"])
+            except ValueError as e:
+                raise ValueError(f"Port validation failed: {str(e)}") from e
+
         for attr, value in data.items():
             setattr(challenge, attr, value)
 
@@ -132,6 +191,14 @@ class DockerServiceChallengeType(BaseChallenge):
         data["docker_secrets"] = data["docker_secrets_array"]
         data["docker_type"] = "service"
         del data["docker_secrets_array"]
+
+        # Validate exposed_ports
+        if "exposed_ports" in data:
+            try:
+                _validate_exposed_ports(data["exposed_ports"])
+            except ValueError as e:
+                raise ValueError(f"Port validation failed: {str(e)}") from e
+
         challenge = DockerServiceChallenge(**data)
         db.session.add(challenge)
         db.session.commit()
