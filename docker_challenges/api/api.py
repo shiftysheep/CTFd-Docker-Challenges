@@ -182,12 +182,20 @@ def _kill_single_container(docker_config, container_id, docker_tracker, challeng
     return None
 
 
+def _is_truthy(value):
+    """Helper to check if a value is truthy (handles bool, string, or other types)."""
+    return value is True or str(value).lower() == "true"
+
+
 @kill_container.route("", methods=["POST"])
 class KillContainerAPI(Resource):
     @admins_only
     def post(self):
         # Read from request body (JSON or form data)
         data = request.get_json() or request.form
+        if not data:
+            return "No data provided", 400
+
         container = data.get("container")
         full = data.get("all")
 
@@ -195,20 +203,21 @@ class KillContainerAPI(Resource):
         docker_tracker = DockerChallengeTracker.query.all()
         challenges = _get_all_challenges()
 
-        if full == "true":
+        # Kill all containers if requested
+        if _is_truthy(full):
             _kill_all_containers(docker_config, docker_tracker, challenges)
-        elif (
-            container
-            and container != "null"
-            and container in [c.instance_id for c in docker_tracker]
-        ):
-            error = _kill_single_container(docker_config, container, docker_tracker, challenges)
-            if error:
-                return error
-        else:
-            return "Invalid request", 400
+            return "Success", 200
 
-        return "Success", 200
+        # Kill single container
+        if container and container != "null":
+            instance_ids = [c.instance_id for c in docker_tracker]
+            if container in instance_ids:
+                error = _kill_single_container(docker_config, container, docker_tracker, challenges)
+                if error:
+                    return error
+                return "Success", 200
+
+        return "Invalid request", 400
 
 
 @container_namespace.route("", methods=["POST", "GET"])
