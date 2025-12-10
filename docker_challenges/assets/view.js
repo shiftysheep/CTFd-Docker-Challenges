@@ -1,6 +1,8 @@
 // Inline constants (cannot use ES6 imports due to Alpine.js race condition)
 // See CLAUDE.md for explanation of why ES6 modules don't work for challenge views
-const CONTAINER_POLL_INTERVAL_MS = 30000; // 30 seconds
+const CONTAINER_POLL_INTERVAL_MS = 30000; // 30 seconds (base interval)
+const CONTAINER_POLL_MAX_INTERVAL_MS = 300000; // 5 minutes (max backoff)
+const CONTAINER_POLL_BACKOFF_MULTIPLIER = 2; // Double interval on each failure
 const MS_PER_SECOND = 1000;
 
 CTFd._internal.challenge.data = undefined;
@@ -48,11 +50,45 @@ function containerStatus(container, challengeId) {
         revertTime: null,
         countdownText: '',
         countdownInterval: null,
+        // Exponential backoff state
+        currentPollInterval: CONTAINER_POLL_INTERVAL_MS,
+        pollTimeoutId: null,
+        consecutiveFailures: 0,
 
         async init() {
             await this.pollStatus();
-            // Poll at configured interval
-            setInterval(() => this.pollStatus(), CONTAINER_POLL_INTERVAL_MS);
+            // Schedule next poll with dynamic interval
+            this.schedulePoll();
+        },
+
+        /**
+         * Schedule the next status poll with current interval
+         * Uses setTimeout for dynamic interval adjustment
+         */
+        schedulePoll() {
+            // Clear any existing timeout
+            if (this.pollTimeoutId) {
+                clearTimeout(this.pollTimeoutId);
+            }
+
+            this.pollTimeoutId = setTimeout(() => this.pollStatus(), this.currentPollInterval);
+        },
+
+        /**
+         * Calculate next poll interval with exponential backoff
+         * Doubles interval on each failure, capped at CONTAINER_POLL_MAX_INTERVAL_MS
+         */
+        calculateBackoffInterval() {
+            const nextInterval = this.currentPollInterval * CONTAINER_POLL_BACKOFF_MULTIPLIER;
+            return Math.min(nextInterval, CONTAINER_POLL_MAX_INTERVAL_MS);
+        },
+
+        /**
+         * Reset polling interval to base value after successful poll
+         */
+        resetPollInterval() {
+            this.currentPollInterval = CONTAINER_POLL_INTERVAL_MS;
+            this.consecutiveFailures = 0;
         },
 
         async pollStatus() {
@@ -75,8 +111,21 @@ function containerStatus(container, challengeId) {
                         this.containerRunning = false;
                     }
                 }
+
+                // Success - reset backoff interval
+                this.resetPollInterval();
             } catch (error) {
                 console.error('Error polling status:', error);
+
+                // Increment failure count and apply exponential backoff
+                this.consecutiveFailures++;
+                this.currentPollInterval = this.calculateBackoffInterval();
+
+                console.log(
+                    `Poll failed (${this.consecutiveFailures} consecutive). ` +
+                        `Next poll in ${this.currentPollInterval / 1000}s`
+                );
+
                 // Only show alert if this is a persistent error (after initial load)
                 if (this.containerRunning) {
                     ezal({
@@ -85,6 +134,9 @@ function containerStatus(container, challengeId) {
                         button: 'Got it!',
                     });
                 }
+            } finally {
+                // Schedule next poll regardless of success/failure
+                this.schedulePoll();
             }
         },
 
