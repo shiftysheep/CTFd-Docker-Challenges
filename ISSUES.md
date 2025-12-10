@@ -1,38 +1,34 @@
 # Known Issues
 
-## 🚫 Blocking Issues (Must Fix Before Merge)
+## ✅ Fixed in This PR (feat/beta-compatibility)
 
 ### Build Configuration
 
-- **pyproject.toml - Deprecated license field format**
-    - Location: pyproject.toml:7
-    - Issue: Using `license = {text = "..."}` format deprecated in setuptools 77.0.0+
-    - Impact: Build fails in CI/CD with modern setuptools
-    - Fix: Change to `license = "Apache-2.0"`
-    - Effort: 5 minutes
+- ✅ **pyproject.toml - Deprecated license field format** - Fixed in `b225341`
+    - Changed from `license = {text = "..."}` to `license = "Apache-2.0"`
+    - Resolved setuptools 77.0.0+ compatibility issue
 
-- **pyproject.toml - Missing package discovery**
-    - Location: pyproject.toml (missing [tool.setuptools] section)
-    - Issue: Build error "Multiple top-level packages discovered"
-    - Impact: Package installation fails, plugin cannot load
-    - Fix: Add `[tool.setuptools]` with `packages = ["docker_challenges"]`
-    - Effort: 5 minutes
+- ✅ **pyproject.toml - Missing package discovery** - Fixed in `b225341`
+    - Added `[tool.setuptools]` section with `packages = ["docker_challenges"]`
+    - Resolved "Multiple top-level packages discovered" build error
 
 ### Critical Security Issues
 
-- **XSS via unsafe Jinja2 filter in challenge view**
-    - Location: docker_challenges/assets/view.html:12
-    - Issue: Challenge name rendered with `|safe` filter allows HTML/JavaScript injection
-    - Impact: Stored XSS - attackers can steal session cookies, compromise accounts
-    - Fix: Remove `|safe` filter (Jinja2 auto-escapes by default)
-    - Effort: 2 minutes
+- ✅ **XSS via unsafe Jinja2 filter in challenge view** - Fixed in `d36f0fb`
+    - Removed `|safe` filters in docker_challenges/assets/view.html:5
+    - Prevents HTML/JavaScript injection through challenge attributes
 
-- **XSS via x-html directives in admin templates**
-    - Location: docker_challenges/templates/admin_docker_status.html:142, 187
-    - Issue: Alpine.js `x-html` renders unescaped HTML from backend
-    - Impact: XSS in admin context (highest privilege)
-    - Fix: Replace `x-html` with `x-text` for safe text rendering
-    - Effort: 5 minutes
+- ✅ **XSS via x-html directives in admin templates** - Fixed in `d36f0fb`
+    - Replaced `x-html` with `x-text` in docker_challenges/templates/admin_docker_status.html:104, 136
+    - Eliminates XSS attack vector in admin context
+
+### Code Maintainability
+
+- ✅ **Massive code duplication - port management** - Fixed in `535b179`
+    - Created shared/portManagement.js module with 6 exported functions (190 lines)
+    - Refactored 4 files: create.js, update.js, create_service.js, update_service.js
+    - Eliminated 616 lines of duplicated code (37% reduction)
+    - Reduced maintenance burden from 4× to 1× effort
 
 ## ⚠️ High Priority Issues
 
@@ -85,13 +81,6 @@
     - Effort: 1 hour
 
 ### Code Maintainability
-
-- **Massive code duplication - port management**
-    - Locations: create.js, update.js, create_service.js, update_service.js
-    - Issue: ~150 lines × 4 files = 600 duplicated lines (60% duplication rate)
-    - Impact: Bug fixes require 4× effort, high inconsistency risk
-    - Fix: Extract to shared/portManagement.js module
-    - Effort: 4 hours
 
 - **Excessive function length - docker_config()**
     - Location: docker_challenges/**init**.py:66-138
@@ -204,14 +193,15 @@
 
 ## Summary Statistics
 
-**Total Issues**: 25
+**Total Issues**: 20 (5 fixed in this PR)
 
-- **Blocking**: 4 (2 build, 2 critical security)
-- **High Priority**: 9 (3 security, 3 code quality, 3 maintainability)
+- **Fixed in This PR**: 5 (4 blocking + 1 maintainability)
+- **Blocking**: 0 ✅
+- **High Priority**: 8 (3 security, 3 code quality, 2 maintainability)
 - **Active Bugs**: 2
 - **Suggestions/Tech Debt**: 10
 - **Feature Requests**: 9
 
-**Estimated Critical Path**: ~10 hours (blocking + high priority security/quality)
+**Estimated Critical Path**: ~7 hours (high priority security/quality)
 
-**Last Updated**: 2025-12-09 (Code Review via feat/beta-compatibility)
+**Last Updated**: 2025-12-09 (Updated after feat/beta-compatibility fixes)
