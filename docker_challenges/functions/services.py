@@ -2,7 +2,11 @@ import hashlib
 import json
 import random
 
-from ..constants import PORT_ASSIGNMENT_MAX, PORT_ASSIGNMENT_MIN
+from ..constants import (
+    MAX_PORT_ASSIGNMENT_ATTEMPTS,
+    PORT_ASSIGNMENT_MAX,
+    PORT_ASSIGNMENT_MIN,
+)
 from ..functions.general import do_request, get_required_ports, get_secrets
 from ..models.models import DockerConfig, DockerServiceChallenge
 
@@ -20,10 +24,12 @@ def _assign_service_ports(needed_ports: list, blocked_ports: list) -> list:
     """
     assigned_ports = []
     for port_spec in needed_ports:
-        while True:
+        assigned_port = None
+        for _attempt in range(MAX_PORT_ASSIGNMENT_ATTEMPTS):
             # random.choice used for port assignment, not cryptographic purposes
-            assigned_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))  # noqa: S311
-            if assigned_port not in blocked_ports:
+            candidate_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))  # noqa: S311
+            if candidate_port not in blocked_ports:
+                assigned_port = candidate_port
                 port_dict = {
                     "PublishedPort": assigned_port,
                     "PublishMode": "ingress",
@@ -33,6 +39,12 @@ def _assign_service_ports(needed_ports: list, blocked_ports: list) -> list:
                 }
                 assigned_ports.append(port_dict)
                 break
+
+        if assigned_port is None:
+            raise RuntimeError(
+                f"Failed to find available port after {MAX_PORT_ASSIGNMENT_ATTEMPTS} attempts. "
+                f"Port range {PORT_ASSIGNMENT_MIN}-{PORT_ASSIGNMENT_MAX} may be exhausted."
+            )
     return assigned_ports
 
 

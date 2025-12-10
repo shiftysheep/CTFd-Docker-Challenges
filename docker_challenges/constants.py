@@ -12,3 +12,4 @@ CONTAINER_REVERT_TIMEOUT_SECONDS = 300  # 5 minutes - minimum time before revert
 # Port assignment range for Docker containers/services
 PORT_ASSIGNMENT_MIN = 30000  # Minimum port for random assignment
 PORT_ASSIGNMENT_MAX = 60000  # Maximum port for random assignment
+MAX_PORT_ASSIGNMENT_ATTEMPTS = 100  # Maximum attempts to find available port before failing
