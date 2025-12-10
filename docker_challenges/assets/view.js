@@ -127,7 +127,29 @@ function containerStatus(container, challengeId) {
     };
 }
 
+// Get Bootstrap Modal constructor (handle different loading methods)
+function getBootstrapModal() {
+    // Check if bootstrap is available globally
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        return bootstrap.Modal;
+    }
+    // Check if it's available via window.bootstrap
+    if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+        return window.bootstrap.Modal;
+    }
+    // Fallback: return null if Bootstrap isn't available
+    console.error('Bootstrap Modal API not available');
+    return null;
+}
+
 function ezal(args) {
+    const Modal = getBootstrapModal();
+    if (!Modal) {
+        // Fallback if Bootstrap isn't available: use native alert
+        alert(args.title + '\n\n' + args.body);
+        return null;
+    }
+
     // Create modal element using Bootstrap 5 native API
     const modalElement = document.createElement('div');
     modalElement.className = 'modal fade';
@@ -154,7 +176,7 @@ function ezal(args) {
     document.body.appendChild(modalElement);
 
     // Initialize Bootstrap 5 modal
-    const modal = new bootstrap.Modal(modalElement);
+    const modal = new Modal(modalElement);
 
     // Add cleanup listener
     modalElement.addEventListener('hidden.bs.modal', function () {
