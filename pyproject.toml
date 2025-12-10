@@ -1,6 +1,6 @@
 [project]
 name = "ctfd-docker-challenges"
-version = "1.0.0"
+version = "2.0.0"
 description = "Docker-based challenge support for CTFd"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -84,11 +84,10 @@ line-ending = "lf"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "1.0.0"
+version_provider = "pep621"
 version_files = [
-    "pyproject.toml:version",
+    "README.md:## Version"
 ]
-tag_format = "v$version"
 update_changelog_on_bump = true
 changelog_file = "CHANGELOG.md"
 changelog_incremental = true
