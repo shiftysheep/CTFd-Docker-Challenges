@@ -255,7 +255,8 @@
 </script>
 <script>
     // Initialize Alpine.js stores for modals (CTFd Pattern)
-    document.addEventListener('alpine:init', () => {
+    // Initialize immediately to avoid undefined store errors
+    if (typeof Alpine !== 'undefined') {
         Alpine.store('confirmModal', {
             title: '',
             body: '',
@@ -267,6 +268,25 @@
             body: '',
             button: 'Got it!',
         });
+    }
+
+    // Also listen for alpine:init in case Alpine loads later
+    document.addEventListener('alpine:init', () => {
+        if (!Alpine.store('confirmModal')) {
+            Alpine.store('confirmModal', {
+                title: '',
+                body: '',
+                onConfirm: () => {},
+            });
+        }
+
+        if (!Alpine.store('alertModal')) {
+            Alpine.store('alertModal', {
+                title: '',
+                body: '',
+                button: 'Got it!',
+            });
+        }
     });
 
     // Check if Alpine.js and Bootstrap are available

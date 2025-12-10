@@ -128,12 +128,24 @@ function containerStatus(container, challengeId) {
 }
 
 // Initialize Alpine.js store for alert modal (CTFd Pattern)
-document.addEventListener('alpine:init', () => {
+// Initialize immediately to avoid undefined store errors
+if (typeof Alpine !== 'undefined') {
     Alpine.store('alertModal', {
         title: '',
         body: '',
         button: 'Got it!',
     });
+}
+
+// Also listen for alpine:init in case Alpine loads later
+document.addEventListener('alpine:init', () => {
+    if (!Alpine.store('alertModal')) {
+        Alpine.store('alertModal', {
+            title: '',
+            body: '',
+            button: 'Got it!',
+        });
+    }
 });
 
 // Check if Alpine.js and Bootstrap are available
