@@ -48,6 +48,18 @@
     - Replaced XMLHttpRequest with modern fetch() API (bonus improvement)
     - Prevents container deletion via CSRF attack (img src trick)
 
+### User Experience
+
+- ✅ **JavaScript error handling - silent failures** - Fixed in `82acb70`
+    - Added ezal() alerts for all fetch errors across 5 JavaScript files (10 total error handlers)
+    - create.js: image fetch and image_ports fetch errors
+    - update.js: image fetch and image_ports fetch errors
+    - create_service.js: image, image_ports, and secrets fetch errors
+    - update_service.js: image, image_ports, and secrets fetch errors
+    - view.js: persistent status polling errors (conditional to avoid spam)
+    - Fixed ES6 module loading: Added `type="module"` to 4 HTML templates
+    - Eliminated silent failures, users now receive clear error messages
+
 ## ⚠️ High Priority Issues
 
 ### Security
@@ -69,13 +81,6 @@
     - Impact: Reduced type safety, poor IDE support, runtime errors undetected
     - Fix: Add type hints to function signatures
     - Effort: 3 hours
-
-- **JavaScript error handling - silent failures**
-    - Location: All \*.js files in docker_challenges/assets/
-    - Issue: Fetch errors only log to console, no user feedback
-    - Impact: Confusing UX when API calls fail
-    - Fix: Add ezal() alerts for fetch errors
-    - Effort: 1 hour
 
 ### Code Maintainability
 
@@ -184,15 +189,15 @@
 
 ## Summary Statistics
 
-**Total Issues**: 17 (8 fixed in this PR)
+**Total Issues**: 17 (9 fixed in this PR)
 
-- **Fixed in This PR**: 8 (4 blocking + 3 high-priority security + 1 maintainability)
+- **Fixed in This PR**: 9 (4 blocking + 3 high-priority security + 1 maintainability + 1 UX)
 - **Blocking**: 0 ✅
-- **High Priority**: 5 (1 security, 2 code quality, 2 maintainability)
+- **High Priority**: 4 (1 security, 1 code quality, 2 maintainability)
 - **Active Bugs**: 2
 - **Suggestions/Tech Debt**: 9
 - **Feature Requests**: 9
 
-**Estimated Critical Path**: ~6 hours (remaining high priority)
+**Estimated Critical Path**: ~5 hours (remaining high priority)
 
-**Last Updated**: 2025-12-09 (Updated after 3 security fixes: SSRF, Assert, CSRF)
+**Last Updated**: 2025-12-09 (Updated after JavaScript error handling fix)
