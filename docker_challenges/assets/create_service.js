@@ -121,8 +121,24 @@ window.CTFd.plugin.run((_CTFd) => {
     fetch('/api/v1/secret')
         .then((response) => response.json())
         .then((result) => {
+            // Handle missing data field (API error responses)
+            if (!result.data) {
+                console.warn('No secrets data returned from API');
+                return;
+            }
+
             const secrets = result.data.sort((a, b) => a.name.localeCompare(b.name));
             const selectElement = document.getElementById('dockersecrets_select');
+
+            // Handle empty secrets list (e.g., Docker not in swarm mode)
+            if (secrets.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '(No secrets available - Docker not in swarm mode)';
+                selectElement.appendChild(option);
+                selectElement.disabled = true;
+                return;
+            }
 
             secrets.forEach((item) => {
                 if (item.name === 'Error in Docker Config!') {
@@ -141,11 +157,14 @@ window.CTFd.plugin.run((_CTFd) => {
         })
         .catch((error) => {
             console.error('Error fetching Docker secrets:', error);
-            ezal({
-                title: 'Error Loading Secrets',
-                body: 'Failed to fetch available Docker secrets. Service challenges may not work correctly. Please refresh the page or contact an administrator.',
-                button: 'Got it!',
-            });
+            // Note: ezal is a CTFd global function that may not be available in all contexts
+            if (typeof ezal !== 'undefined') {
+                ezal({
+                    title: 'Error Loading Secrets',
+                    body: 'Failed to fetch available Docker secrets. Service challenges may not work correctly. Please refresh the page or contact an administrator.',
+                    button: 'Got it!',
+                });
+            }
         });
 
     // Setup form validation using shared module

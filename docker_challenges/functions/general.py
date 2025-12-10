@@ -102,8 +102,14 @@ def get_docker_info(docker: DockerConfig) -> str:
 
 def get_secrets(docker: DockerConfig):
     r = do_request(docker, "/secrets")
+    response_data = r.json()
+
+    # Handle error responses (e.g., when Docker is not in swarm mode)
+    if isinstance(response_data, dict) and "message" in response_data:
+        return []
+
     tmplist = []
-    for secret in r.json():
+    for secret in response_data:
         tmpdict = {}
         tmpdict["ID"] = secret["ID"]
         tmpdict["Name"] = secret["Spec"]["Name"]

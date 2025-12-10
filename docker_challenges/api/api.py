@@ -328,12 +328,12 @@ class SecretAPI(Resource):
     def get(self):
         docker = DockerConfig.query.filter_by(id=1).first()
         secrets = get_secrets(docker)
-        if secrets:
-            data = []
-            for i in secrets:
-                data.append({"name": i["Name"], "id": i["ID"]})
-            return {"success": True, "data": data}
-        return {"success": False, "data": [{"name": "Error in Docker Config!"}]}, 400
+        # Return empty list if no secrets available (e.g., Docker not in swarm mode)
+        # This is a valid state, not an error
+        data = []
+        for i in secrets:
+            data.append({"name": i["Name"], "id": i["ID"]})
+        return {"success": True, "data": data}
 
 
 @image_ports_namespace.route("", methods=["GET"])
