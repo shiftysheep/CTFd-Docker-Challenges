@@ -60,16 +60,28 @@
     - Fixed ES6 module loading: Added `type="module"` to 4 HTML templates
     - Eliminated silent failures, users now receive clear error messages
 
+- ✅ **/api/v1/nuke 500 error - boolean handling** - Fixed in `310b449`
+    - Created \_is_truthy() helper to handle both JSON (boolean) and form (string) values
+    - Refactored control flow with early returns to reduce complexity (Xenon compliance)
+    - Fixed TypeError when frontend sends `true` as boolean vs string "true"
+
+- ✅ **ES6 module loading - multiple issues** - Fixed in `58b04a6`, `e86f1ee`, `8bd8c99`
+    - `58b04a6`: Inject scripts via {% block footer %} instead of non-existent {% block scripts %}
+    - `e86f1ee`: Use absolute paths (/plugins/.../assets/\*.js) instead of url_for() to avoid KeyError
+    - `8bd8c99`: Use window.CTFd to access global from ES6 module scope in 4 JavaScript files
+    - Resolved: "CTFd is not defined" ReferenceError
+    - Resolved: 500 errors on /challenges and /api/v1/challenges/types
+    - Resolved: KeyError: 'view' and KeyError: 'docker_challenges.static'
+
+- ✅ **Server-side port validation** - Fixed in `bfeecf5`
+    - Created \_validate_exposed_ports() helper function with comprehensive validation
+    - Validates format: port/protocol (e.g., "80/tcp", "443/tcp", "53/udp")
+    - Validates port range: 1-65535
+    - Validates protocol: tcp or udp only (case-insensitive)
+    - Integrated in DockerChallengeType.create() and update() for both challenge types
+    - Prevents malicious admin bypass via client-side validation circumvention
+
 ## ⚠️ High Priority Issues
-
-### Security
-
-- **Client-side only port validation**
-    - Location: docker_challenges/assets/create.js, update.js, create_service.js, update_service.js
-    - Issue: Port validation only enforced in JavaScript (bypassable)
-    - Impact: Malicious admin creates invalid challenges → container launch fails
-    - Fix: Add server-side validation in DockerChallengeType.create()
-    - Effort: 2 hours
 
 ### Code Quality
 
@@ -189,15 +201,15 @@
 
 ## Summary Statistics
 
-**Total Issues**: 17 (9 fixed in this PR)
+**Total Issues**: 17 (12 fixed in this PR)
 
-- **Fixed in This PR**: 9 (4 blocking + 3 high-priority security + 1 maintainability + 1 UX)
+- **Fixed in This PR**: 12 (4 blocking + 4 high-priority security + 1 maintainability + 3 UX/bug fixes)
 - **Blocking**: 0 ✅
-- **High Priority**: 4 (1 security, 1 code quality, 2 maintainability)
+- **High Priority**: 3 (1 code quality, 2 maintainability)
 - **Active Bugs**: 2
 - **Suggestions/Tech Debt**: 9
 - **Feature Requests**: 9
 
 **Estimated Critical Path**: ~5 hours (remaining high priority)
 
-**Last Updated**: 2025-12-09 (Updated after JavaScript error handling fix)
+**Last Updated**: 2025-12-09 (Updated after ES6 module loading and server-side validation fixes)
