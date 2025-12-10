@@ -6,8 +6,6 @@ from requests.exceptions import RequestException, Timeout
 
 from ..models.models import DockerConfig
 
-logger = logging.getLogger(__name__)
-
 
 def do_request(
     docker: DockerConfig,
@@ -115,11 +113,6 @@ def get_secrets(docker: DockerConfig):
         tmpdict["Name"] = secret["Spec"]["Name"]
         tmplist.append(tmpdict)
     return tmplist
-
-
-def delete_secret(docker: DockerConfig, id: str):
-    r = do_request(docker, f"/secrets/{id}", method="DELETE")
-    return r.ok
 
 
 def _extract_container_ports(containers_json: list) -> list:

@@ -30,6 +30,11 @@
     - Eliminated 616 lines of duplicated code (37% reduction)
     - Reduced maintenance burden from 4× to 1× effort
 
+- ✅ **Unused code cleanup** - Fixed in (pending commit)
+    - Removed delete_secret() function from general.py:120-122 (never called)
+    - Removed logger import from general.py:9 (unused variable)
+    - Impact: Improved code hygiene, reduced confusion
+
 ### High Priority Security
 
 - ✅ **SSRF vulnerability in image_ports endpoint** - Fixed in `68ddb41`
@@ -182,12 +187,6 @@
     - Fix (long-term): Background Celery task
     - Effort: 1 hour (short-term), 12 hours (long-term)
 
-- **Unused code - potential cleanup**
-    - delete_secret() function (general.py:114) - never called, may be reserved
-    - logger import (general.py:9) - imported but unused
-    - Impact: Minor code hygiene
-    - Effort: 15 minutes
-
 ## Feature Requests
 
 - Create secrets from CTFd into docker
@@ -215,15 +214,15 @@
 
 ## Summary Statistics
 
-**Total Issues**: 17 (12 fixed in this PR)
+**Total Issues**: 16 (13 fixed in this PR)
 
-- **Fixed in This PR**: 12 (4 blocking + 4 high-priority security + 1 maintainability + 3 UX/bug fixes)
+- **Fixed in This PR**: 13 (4 blocking + 4 high-priority security + 1 maintainability + 3 UX/bug fixes + 1 code hygiene)
 - **Blocking**: 0 ✅
 - **High Priority**: 3 (1 code quality, 2 maintainability)
 - **Active Bugs**: 2
-- **Suggestions/Tech Debt**: 9
+- **Suggestions/Tech Debt**: 8
 - **Feature Requests**: 9
 
 **Estimated Critical Path**: ~5 hours (remaining high priority)
 
-**Last Updated**: 2025-12-09 (Updated after ES6 module loading and server-side validation fixes)
+**Last Updated**: 2025-12-09 (Updated after unused code cleanup)
