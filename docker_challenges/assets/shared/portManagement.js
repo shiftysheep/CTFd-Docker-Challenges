@@ -3,8 +3,6 @@
  * Shared module for managing exposed ports across Docker challenge forms
  */
 
-import { UI_LOADING_DELAY_MS } from '../constants.js';
-
 /**
  * Validate port number is in valid range (1-65535)
  * @param {string|number} port - Port number to validate
@@ -150,8 +148,44 @@ export function validatePorts() {
 }
 
 /**
+ * Attach validation handler to a submit button
+ * @param {HTMLElement} button - The button element to attach the handler to
+ */
+function attachButtonValidation(button) {
+    // Check if we've already attached to this button
+    if (button.dataset.portValidationAttached === 'true') {
+        return;
+    }
+
+    button.addEventListener(
+        'click',
+        function (event) {
+            if (!validatePorts()) {
+                event.preventDefault();
+                event.stopPropagation();
+                return false;
+            }
+        },
+        true
+    ); // Use capture phase
+
+    // Mark button as having validation attached
+    button.dataset.portValidationAttached = 'true';
+}
+
+/**
+ * Find and attach validation to all current submit buttons
+ */
+function attachToExistingButtons() {
+    const submitButtons = document.querySelectorAll(
+        'button[type="submit"], input[type="submit"], .submit-button'
+    );
+    submitButtons.forEach(attachButtonValidation);
+}
+
+/**
  * Setup form validation hooks to ensure ports are configured
- * Hooks into form submission and submit buttons
+ * Hooks into form submission and submit buttons (both existing and dynamically added)
  */
 export function setupPortValidation() {
     // Hook into form submission
@@ -170,23 +204,41 @@ export function setupPortValidation() {
         ); // Use capture phase to run before other handlers
     }
 
-    // Also hook into submit buttons directly
-    setTimeout(() => {
-        const submitButtons = document.querySelectorAll(
-            'button[type="submit"], input[type="submit"], .submit-button'
-        );
-        submitButtons.forEach((button) => {
-            button.addEventListener(
-                'click',
-                function (event) {
-                    if (!validatePorts()) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        return false;
-                    }
-                },
-                true
-            ); // Use capture phase
+    // Attach to any submit buttons that already exist
+    attachToExistingButtons();
+
+    // Use MutationObserver to watch for dynamically added submit buttons
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            // Check if any new nodes were added
+            mutation.addedNodes.forEach((node) => {
+                // Skip text nodes
+                if (node.nodeType !== Node.ELEMENT_NODE) {
+                    return;
+                }
+
+                // Check if the added node itself is a submit button
+                if (
+                    node.matches &&
+                    node.matches('button[type="submit"], input[type="submit"], .submit-button')
+                ) {
+                    attachButtonValidation(node);
+                }
+
+                // Check if the added node contains submit buttons
+                if (node.querySelectorAll) {
+                    const buttons = node.querySelectorAll(
+                        'button[type="submit"], input[type="submit"], .submit-button'
+                    );
+                    buttons.forEach(attachButtonValidation);
+                }
+            });
         });
-    }, UI_LOADING_DELAY_MS); // Delay to ensure buttons are loaded
+    });
+
+    // Start observing the document body for changes
+    observer.observe(document.body, {
+        childList: true, // Watch for added/removed nodes
+        subtree: true, // Watch entire subtree
+    });
 }
