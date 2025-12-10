@@ -90,5 +90,5 @@ version_files = [
 ]
 update_changelog_on_bump = true
 changelog_file = "CHANGELOG.md"
-changelog_incremental = false  # Temporarily disabled for first release
+changelog_incremental = true
 changelog_start_rev = "e1a0c60"  # Latest commit before commitizen setup
