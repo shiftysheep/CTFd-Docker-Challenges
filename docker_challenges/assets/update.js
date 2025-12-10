@@ -79,15 +79,31 @@ CTFd.plugin.run((_CTFd) => {
                                 portsTextarea.value = '';
                             }
                             loadExistingPorts(); // Reload UI with new ports
+                        } else {
+                            ezal({
+                                title: 'Error Loading Ports',
+                                body: 'Failed to fetch exposed ports for the selected image. Please try again or configure ports manually.',
+                                button: 'Got it!',
+                            });
                         }
                     })
                     .catch((error) => {
                         console.error('Error fetching image ports:', error);
+                        ezal({
+                            title: 'Network Error',
+                            body: 'Could not connect to server to fetch image ports. Please check your connection and try again.',
+                            button: 'Got it!',
+                        });
                     });
             });
         })
         .catch((error) => {
             console.error('Error fetching Docker images:', error);
+            ezal({
+                title: 'Error Loading Images',
+                body: 'Failed to fetch available Docker images. The challenge form may not work correctly. Please refresh the page or contact an administrator.',
+                button: 'Got it!',
+            });
         });
 
     // Setup form validation using shared module

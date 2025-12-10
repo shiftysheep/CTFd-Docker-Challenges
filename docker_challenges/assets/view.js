@@ -72,6 +72,14 @@ function containerStatus(container, challengeId) {
                 }
             } catch (error) {
                 console.error('Error polling status:', error);
+                // Only show alert if this is a persistent error (after initial load)
+                if (this.containerRunning) {
+                    ezal({
+                        title: 'Status Update Failed',
+                        body: 'Could not refresh container status. Your container may still be running, but the displayed information might be outdated.',
+                        button: 'Got it!',
+                    });
+                }
             }
         },
 
