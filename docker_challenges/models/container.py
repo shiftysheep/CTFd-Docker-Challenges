@@ -80,13 +80,13 @@ class DockerChallengeType(BaseChallenge):
         "update": "/plugins/docker_challenges/assets/update.html",
         "view": "/plugins/docker_challenges/assets/view.html",
     }
-    # Scripts dictionary required for CTFd API compatibility
-    # ES6 module scripts are loaded via {% block footer %} in templates with type="module"
-    # These empty strings prevent CTFd from dynamically executing ES6 code
+    # Scripts dictionary required for CTFd's getScript() loading mechanism
+    # Stub files satisfy jQuery getScript() without interfering with ES6 modules
+    # Actual functionality loaded via {% block footer %} in templates with type="module"
     scripts = {
-        "create": "",
-        "update": "",
-        "view": "",
+        "create": "/plugins/docker_challenges/assets/stub_create.js",
+        "update": "/plugins/docker_challenges/assets/stub_update.js",
+        "view": "/plugins/docker_challenges/assets/stub_view.js",
     }
     route = "/plugins/docker_challenges/assets"
     blueprint = Blueprint(
