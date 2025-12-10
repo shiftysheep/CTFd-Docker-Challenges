@@ -183,3 +183,7 @@ function ezal(args) {
     const modal = new bootstrap.Modal(modalElement);
     modal.show();
 }
+
+// Expose containerStatus to global scope for Alpine.js x-data directives
+// ES6 modules have isolated scope, so we need to explicitly make it available
+window.containerStatus = containerStatus;
