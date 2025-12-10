@@ -41,7 +41,7 @@
     - Updated 7 files to import and use constants: api.py, containers.py, services.py, view.js, portManagement.js
     - Impact: Centralized configuration, improved maintainability
 
-- ✅ **Type hints - PEP 484 compliance** - Fixed in (pending commit)
+- ✅ **Type hints - PEP 484 compliance** - Fixed in `406a22a`
     - Added type annotations to 16 functions (11 in api.py, 5 in general.py)
     - Imported `typing.Any` for CTFd session types
     - Comprehensive type hints including: DockerConfig, list[int], dict[str, str], tuple types, union types (|), Optional types
