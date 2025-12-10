@@ -10,9 +10,9 @@ from ..models.models import DockerConfig
 def do_request(
     docker: DockerConfig,
     url: str,
-    headers: dict = None,
+    headers: dict[str, str] | None = None,
     method: str = "GET",
-    data: dict | str = None,
+    data: dict | str | None = None,
 ) -> list | Response:
     tls = docker.tls_enabled
     prefix = "https" if tls else "http"
@@ -57,7 +57,9 @@ def do_request(
 
 
 # For the Docker Config Page. Gets the Current Repositories available on the Docker Server.
-def get_repositories(docker: DockerConfig, tags=False, repos=False):
+def get_repositories(
+    docker: DockerConfig, tags: bool = False, repos: bool | list = False
+) -> list[str]:
     r = do_request(docker, "/images/json?all=1")
 
     if not r:
@@ -98,7 +100,7 @@ def get_docker_info(docker: DockerConfig) -> str:
     return output
 
 
-def get_secrets(docker: DockerConfig):
+def get_secrets(docker: DockerConfig) -> list[dict[str, str]]:
     r = do_request(docker, "/secrets")
     response_data = r.json()
 
@@ -145,7 +147,7 @@ def _extract_service_ports(services_json: list) -> list:
     return result
 
 
-def get_unavailable_ports(docker: DockerConfig):
+def get_unavailable_ports(docker: DockerConfig) -> list[int]:
     """Get list of ports already in use by containers and services."""
     # Get container ports
     r = do_request(docker, "/containers/json?all=1")
@@ -169,7 +171,9 @@ def get_unavailable_ports(docker: DockerConfig):
     return result
 
 
-def get_required_ports(docker, image, challenge_ports=None):
+def get_required_ports(
+    docker: DockerConfig, image: str, challenge_ports: str | None = None
+) -> list[str]:
     """
     Get required ports for a challenge, merging image metadata and challenge configuration.
 
@@ -179,7 +183,7 @@ def get_required_ports(docker, image, challenge_ports=None):
         challenge_ports: Optional comma-separated string of ports (e.g., "80/tcp,443/tcp")
 
     Returns:
-        Set of port specifications (e.g., {"80/tcp", "443/tcp"})
+        List of port specifications (e.g., ["80/tcp", "443/tcp"])
     """
     ports = set()
 

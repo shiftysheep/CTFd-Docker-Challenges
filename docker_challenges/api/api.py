@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from typing import Any
 
 from CTFd.models import db
 from CTFd.utils.config import is_teams_mode
@@ -37,7 +38,7 @@ image_ports_namespace = Namespace(
 )
 
 
-def delete_docker(docker, docker_type, instance_id):
+def delete_docker(docker: DockerConfig, docker_type: str, instance_id: str) -> None:
     """Delete a Docker container or service and remove from tracker."""
     if docker_type == "docker_service":
         if not delete_service(docker, instance_id):
@@ -49,7 +50,7 @@ def delete_docker(docker, docker_type, instance_id):
     db.session.commit()
 
 
-def _cleanup_stale_containers(docker, session, is_teams):
+def _cleanup_stale_containers(docker: DockerConfig, session: Any, is_teams: bool) -> None:
     """Clean up containers older than CONTAINER_STALE_TIMEOUT_SECONDS for current session."""
     containers = DockerChallengeTracker.query.all()
     session_id_field = "team_id" if is_teams else "user_id"
@@ -69,7 +70,9 @@ def _cleanup_stale_containers(docker, session, is_teams):
                 delete_docker(docker, challenge.type, container.instance_id)
 
 
-def _get_existing_container(session, challenge, is_teams):
+def _get_existing_container(
+    session: Any, challenge: DockerChallenge | DockerServiceChallenge, is_teams: bool
+) -> DockerChallengeTracker | None:
     """Get existing container for session and challenge if it exists."""
     query = DockerChallengeTracker.query
     query = query.filter_by(team_id=session.id) if is_teams else query.filter_by(user_id=session.id)
@@ -81,7 +84,7 @@ def _get_existing_container(session, challenge, is_teams):
     )
 
 
-def _should_revert_container(existing_container):
+def _should_revert_container(existing_container: DockerChallengeTracker | None) -> bool:
     """Check if container should be reverted (older than CONTAINER_REVERT_TIMEOUT_SECONDS)."""
     if not existing_container:
         return False
@@ -90,7 +93,7 @@ def _should_revert_container(existing_container):
     return age_seconds >= CONTAINER_REVERT_TIMEOUT_SECONDS
 
 
-def _get_challenge_by_id(challenge_id):
+def _get_challenge_by_id(challenge_id: int) -> DockerChallenge | DockerServiceChallenge | None:
     """Retrieve challenge by ID, checking both Docker and DockerService types."""
     challenge = DockerChallenge.query.filter_by(id=challenge_id).first()
     if not challenge:
@@ -98,7 +101,12 @@ def _get_challenge_by_id(challenge_id):
     return challenge
 
 
-def _create_docker_instance(docker, challenge, session, portsbl):
+def _create_docker_instance(
+    docker: DockerConfig,
+    challenge: DockerChallenge | DockerServiceChallenge,
+    session: Any,
+    portsbl: list[int],
+) -> tuple[str | None, list[str] | None, str | None]:
     """Create a new Docker container or service instance."""
     if challenge.docker_type == "service":
         instance_id, data = create_service(
@@ -123,7 +131,12 @@ def _create_docker_instance(docker, challenge, session, portsbl):
     return instance_id, ports, data
 
 
-def _handle_container_creation(docker, challenge, session, is_teams):
+def _handle_container_creation(
+    docker: DockerConfig,
+    challenge: DockerChallenge | DockerServiceChallenge,
+    session: Any,
+    is_teams: bool,
+) -> tuple[str, list[str]] | None:
     """Handle complete container/service creation workflow."""
     # Clean up stale containers (older than 2 hours)
     _cleanup_stale_containers(docker, session, is_teams)
@@ -146,14 +159,18 @@ def _handle_container_creation(docker, challenge, session, is_teams):
     return (instance_id, ports) if instance_id else None
 
 
-def _get_all_challenges():
+def _get_all_challenges() -> dict[int, DockerChallenge | DockerServiceChallenge]:
     """Get all challenges indexed by ID."""
     challenges = {c.id: c for c in DockerChallenge.query.all()}
     challenges.update({c.id: c for c in DockerServiceChallenge.query.all()})
     return challenges
 
 
-def _kill_all_containers(docker_config, docker_tracker, challenges):
+def _kill_all_containers(
+    docker_config: DockerConfig,
+    docker_tracker: list[DockerChallengeTracker],
+    challenges: dict[int, DockerChallenge | DockerServiceChallenge],
+) -> None:
     """Kill all tracked containers."""
     for tracker_entry in docker_tracker:
         challenge = challenges.get(tracker_entry.challenge_id)
@@ -167,7 +184,12 @@ def _kill_all_containers(docker_config, docker_tracker, challenges):
             )
 
 
-def _kill_single_container(docker_config, container_id, docker_tracker, challenges):
+def _kill_single_container(
+    docker_config: DockerConfig,
+    container_id: str,
+    docker_tracker: list[DockerChallengeTracker],
+    challenges: dict[int, DockerChallenge | DockerServiceChallenge],
+) -> tuple[str, int] | None:
     """Kill a specific container by ID."""
     tracker_entry = next((c for c in docker_tracker if c.instance_id == container_id), None)
     if not tracker_entry:
@@ -183,7 +205,7 @@ def _kill_single_container(docker_config, container_id, docker_tracker, challeng
     return None
 
 
-def _is_truthy(value):
+def _is_truthy(value: Any) -> bool:
     """Helper to check if a value is truthy (handles bool, string, or other types)."""
     return value is True or str(value).lower() == "true"
 

@@ -35,11 +35,17 @@
     - Removed logger import from general.py:9 (unused variable)
     - Impact: Improved code hygiene, reduced confusion
 
-- ✅ **Magic numbers extraction** - Fixed in (pending commit)
+- ✅ **Magic numbers extraction** - Fixed in `87d85d0`
     - Created constants.py with: CONTAINER_STALE_TIMEOUT_SECONDS (7200), CONTAINER_REVERT_TIMEOUT_SECONDS (300), PORT_ASSIGNMENT_MIN/MAX (30000-60000)
     - Created constants.js with: CONTAINER_POLL_INTERVAL_MS (30000), UI_LOADING_DELAY_MS (1000), MS_PER_SECOND (1000)
     - Updated 7 files to import and use constants: api.py, containers.py, services.py, view.js, portManagement.js
     - Impact: Centralized configuration, improved maintainability
+
+- ✅ **Type hints - PEP 484 compliance** - Fixed in (pending commit)
+    - Added type annotations to 16 functions (11 in api.py, 5 in general.py)
+    - Imported `typing.Any` for CTFd session types
+    - Comprehensive type hints including: DockerConfig, list[int], dict[str, str], tuple types, union types (|), Optional types
+    - Impact: Improved type safety, better IDE support, catch errors at development time
 
 ### High Priority Security
 
@@ -107,17 +113,6 @@
     - Resolves final module loading issues, challenge forms now work correctly
 
 ## ⚠️ High Priority Issues
-
-### Code Quality
-
-- **Missing type hints - PEP 484 violations**
-    - Locations:
-        - docker_challenges/api/api.py (13 functions)
-        - docker_challenges/functions/general.py (3 functions)
-    - Issue: 16 functions missing type annotations
-    - Impact: Reduced type safety, poor IDE support, runtime errors undetected
-    - Fix: Add type hints to function signatures
-    - Effort: 3 hours
 
 ### Code Maintainability
 
@@ -214,15 +209,15 @@
 
 ## Summary Statistics
 
-**Total Issues**: 15 (14 fixed in this PR)
+**Total Issues**: 14 (15 fixed in this PR)
 
-- **Fixed in This PR**: 14 (4 blocking + 4 high-priority security + 1 maintainability + 3 UX/bug fixes + 2 code quality)
+- **Fixed in This PR**: 15 (4 blocking + 4 high-priority security + 1 maintainability + 3 UX/bug fixes + 3 code quality)
 - **Blocking**: 0 ✅
-- **High Priority**: 3 (1 code quality, 2 maintainability)
+- **High Priority**: 2 (2 maintainability refactoring tasks)
 - **Active Bugs**: 2
 - **Suggestions/Tech Debt**: 7
 - **Feature Requests**: 9
 
-**Estimated Critical Path**: ~5 hours (remaining high priority)
+**Estimated Critical Path**: ~2 hours (remaining high priority maintainability)
 
-**Last Updated**: 2025-12-09 (Updated after magic numbers extraction)
+**Last Updated**: 2025-12-09 (Updated after type hints addition)
