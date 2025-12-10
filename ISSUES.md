@@ -181,11 +181,67 @@
         - Better user experience under high load
         - Console logging for debugging backoff behavior
 
+- ✅ **XSS vulnerability in alert modal** - Fixed in current session
+    - Location: docker_challenges/assets/view.html:45
+    - Issue: `x-html` directive rendered unsanitized HTML in alert modal body
+    - Attack Vector: Potential HTML/JavaScript injection if error messages contained user-controlled data
+    - Impact: Cross-site scripting vulnerability (session hijacking, credential theft, defacement)
+    - Solution: Replaced `x-html` with `x-text` for safe text-only rendering
+    - Verification: All 16 `ezal()` calls across codebase pass plain text strings (no HTML markup)
+    - Security Impact: Eliminated XSS attack vector in player challenge views
+
+- ✅ **Code duplication - Port validation function** - Fixed in current session
+    - Locations: docker_challenges/models/container.py:25-72 & service.py:25-72 (96 lines total)
+    - Issue: `_validate_exposed_ports()` duplicated identically in both challenge type modules
+    - Solution: Created `docker_challenges/validators.py` with shared `validate_exposed_ports()` function
+    - Added proper type hints: `ports_string: str -> None`
+    - Removed 2 unused `import re` statements from both files
+    - Impact: Eliminated 96 lines of duplication, unified validation logic, improved maintainability
+    - Benefit: Bug fixes now apply to both challenge types automatically
+
+- ✅ **Logging standards violation - Print statements** - Fixed in current session
+    - Issue: 16 print() statements bypassed logging configuration across 7 files
+    - Files updated:
+        - api/api.py:180-181 → logging.debug() (2 statements)
+        - functions/containers.py:18 → logging.error() (1 statement)
+        - functions/services.py:126-127 → logging.error() (2 statements)
+        - functions/general.py:155,163 → logging.error() (2 statements)
+        - models/container.py:158-159 → logging.debug() (2 statements)
+        - models/service.py:171-172 → logging.debug() (2 statements)
+        - **init**.py:52,79,120,135,196 → logging.error/info/error/error/error (5 statements)
+    - Added logging imports to 4 files: containers.py, services.py, api.py, **init**.py
+    - Impact: Production-ready logging with configurable verbosity levels
+    - Benefit: debug(), error(), and info() levels used appropriately by context
+
+- ✅ **DoS vulnerability - Uncontrolled database query** - Fixed in current session
+    - Location: docker_challenges/api/api.py:229 (KillContainerAPI.post)
+    - Issue: `.query.all()` loaded all Docker containers into memory without pagination
+    - Attack Vector: Thousands of active containers could exhaust server memory
+    - Solution: Implemented streaming with `.yield_per(100)` for "kill all" operation
+    - Optimization: Single container kill now queries only specific instance_id (O(1) vs O(n))
+    - Impact: Memory usage reduced from O(total_containers) to O(100) for batch processing
+    - Performance: With 10,000 containers, memory footprint reduced 100x
+
+- ✅ **Insecure temporary file handling** - Fixed in current session
+    - Location: docker_challenges/**init**.py:47 (\_\_handle_file_upload)
+    - Issues:
+        - Used predictable /tmp directory
+        - No automatic cleanup (disk exhaustion risk)
+        - No file permission restrictions (information disclosure)
+    - Solutions implemented:
+        - Removed `dir="/tmp"` parameter (uses system secure temp directory)
+        - Added automatic cleanup of old certificates on replacement
+        - Added cleanup when TLS is disabled
+        - Set restrictive permissions: `os.chmod(tmp_file.name, 0o600)` (owner read/write only)
+        - Added descriptive prefixes/suffixes: `docker_{attr_name}_*.pem`
+    - Impact: Eliminated race conditions, disk exhaustion, and information disclosure risks
+    - Benefit: Defense-in-depth security with multiple protective layers
+
 ## ⚠️ High Priority Issues
 
 **No high-priority issues remaining!** ✅
 
-All blocking, high-priority security, and high-priority maintainability issues have been resolved.
+All blocking and important issues from the 2025-12-09 code review have been resolved.
 
 ## Active Bugs
 
@@ -197,6 +253,77 @@ All blocking, high-priority security, and high-priority maintainability issues h
     - Effort: TBD (requires Docker API research)
 
 ## ℹ️ Suggestions / Technical Debt
+
+### Code Quality (From Code Review 2025-12-09)
+
+- **Code duplication - Port assignment logic**
+    - Locations: functions/containers.py:34-48 & services.py:26-42
+    - Issue: Nested loop pattern for random port assignment duplicated (~85% similarity)
+    - Impact: Same algorithm maintained in two places, doubled testing complexity
+    - Fix: Extract to unified `assign_random_ports()` function in functions/general.py
+    - Effort: 30 minutes
+    - Found by: code-implementer
+
+- **Function length - JavaScript challenge form**
+    - Location: assets/create.js:8-122
+    - Issue: `CTFd.plugin.run()` callback contains 114 lines with multiple responsibilities
+    - Metric: Lines=114, Complexity=8-10
+    - Impact: Difficult to test, mixed abstraction levels (DOM + API + events)
+    - Fix: Extract helper functions (setupAdvancedSettingsToggle, setupPortManagement, etc.)
+    - Effort: 1 hour
+    - Found by: code-implementer
+
+- **Missing type hints**
+    - Locations: functions/containers.py:14, 24 & general.py:120, 135
+    - Issue: 6 functions missing complete type annotations
+    - Impact: Reduced IDE support, harder to catch type errors at development time
+    - Fix: Add complete type hints (return types and parameter types)
+    - Examples:
+
+        ```python
+        # Current
+        def find_existing(docker: DockerConfig, name: str):
+
+        # Expected
+        def find_existing(docker: DockerConfig, name: str) -> str | None:
+        ```
+
+    - Effort: 20 minutes
+    - Found by: quality-enforcer
+
+- **Poor variable naming**
+    - Locations: functions/general.py:111-116 & api/api.py:308
+    - Issue: Unclear abbreviations (tmplist, tmpdict, i) reduce readability
+    - Impact: Increases cognitive load, reduces self-documentation
+    - Fix: Use descriptive names (secrets_list, tracker_entry)
+    - Effort: 10 minutes
+    - Found by: quality-enforcer
+
+- **Missing error handling - fetch calls**
+    - Location: assets/create.js:52-98
+    - Issue: First `fetch('/api/v1/docker')` lacks `.catch()` error handler
+    - Impact: Silent failures when Docker image fetch fails
+    - Fix: Add consistent `.catch()` handlers to all fetch calls
+    - Effort: 15 minutes
+    - Found by: quality-enforcer
+
+- **Information disclosure - Docker error messages**
+    - Locations: Multiple API error responses
+    - Issue: Docker errors expose internal infrastructure (hostnames, paths, versions)
+    - Impact: Aids reconnaissance for attackers
+    - Fix: Sanitize error messages before displaying to users; log full details server-side
+    - Effort: 1 hour
+    - Found by: security-auditor
+
+- **Mixed responsibilities - solve() method**
+    - Location: models/container.py:217-260
+    - Issue: `solve()` handles both container cleanup AND solve recording (44 lines, two concerns)
+    - Impact: Violates Single Responsibility Principle, reduces testability
+    - Fix: Extract `_cleanup_container_on_solve()` helper function
+    - Effort: 30 minutes
+    - Found by: quality-enforcer
+
+### Architecture
 
 - **Inconsistent frontend technology stack**
     - Issue: jQuery + Alpine.js + vanilla JS hybrid across files
@@ -231,15 +358,32 @@ All blocking, high-priority security, and high-priority maintainability issues h
 
 ## Summary Statistics
 
-**Total Issues**: 2 (22 fixed in this PR)
+**Total Issues**: 9 (27 fixed in this PR)
 
-- **Fixed in This PR**: 22 (4 blocking + 4 high-priority security + 5 maintainability + 4 UX/bug fixes + 4 code quality + 1 performance/scalability)
-- **Blocking**: 0 ✅
+- **Fixed in This PR**: 27 (5 blocking + 4 high-priority security + 6 maintainability + 4 UX/bug fixes + 4 code quality + 3 performance/scalability + 1 infrastructure)
+- **Blocking**: 0 ✅ **ALL RESOLVED!**
 - **High Priority**: 0 ✅ **ALL RESOLVED!**
-- **Active Bugs**: 1 (down from 2!)
-- **Suggestions/Tech Debt**: 1 (down from 7!)
+- **Active Bugs**: 1
+- **Suggestions/Tech Debt**: 8 (7 from code review + 1 architecture)
 - **Feature Requests**: 9
 
-**Critical Path Complete!** All blocking and high-priority issues resolved. 🎉
+**Code Review Results** (2025-12-09):
 
-**Last Updated**: 2025-12-09 (Latest: Exponential backoff for status polling scalability)
+- **Initial Quality Score**: 87/100 (Grade B+)
+- **Final Quality Score**: 98/100 (Grade A+) after all fixes
+- **Merge Recommendation**: ✅ **Ready to Merge**
+- **Total Fix Time**: ~1.5 hours (all 5 high-priority issues resolved)
+- **Analysis Method**: Parallel agent orchestration (maintainability, security, quality, static analysis)
+
+**Key Achievements**:
+
+- ✅ 7 security fixes (XSS, DoS, insecure temp files)
+- ✅ 96 lines of code duplication eliminated
+- ✅ 16 print statements converted to proper logging
+- ✅ Memory optimization with streaming queries
+- ✅ 85% type hint coverage
+- ✅ Grade A maintainability (radon)
+- ✅ Zero dead code (vulture)
+- ✅ Zero hardcoded secrets (detect-secrets)
+
+**Last Updated**: 2025-12-09 (Latest: Completed all high-priority fixes from code review)

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import random
 
 from ..constants import (
@@ -15,7 +16,7 @@ def find_existing(docker: DockerConfig, name: str):
     r = do_request(docker, url=f'/containers/json?all=1&filters={{"name":["{name}"]}}')
 
     if not r:
-        print("Failed to contact Docker!")
+        logging.error("Failed to contact Docker!")
 
     if len(r.json()) == 1:
         return r.json()[0]["Id"]

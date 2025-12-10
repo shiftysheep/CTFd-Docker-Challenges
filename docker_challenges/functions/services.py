@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import random
 
 from ..constants import (
@@ -123,8 +124,8 @@ def create_service(docker: DockerConfig, challenge_id: int, image: str, team: st
     r = do_request(docker, url="/services/create", method="POST", data=data)
     instance_id = r.json().get("ID")
     if not instance_id:
-        print(f"Unable to create service {service_name} with image {image}")
-        print(f"Error: {r.json()}")
+        logging.error(f"Unable to create service {service_name} with image {image}")
+        logging.error(f"Error: {r.json()}")
         return None, None
 
     return instance_id, data

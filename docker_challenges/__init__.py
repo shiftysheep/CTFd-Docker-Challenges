@@ -1,3 +1,5 @@
+import logging
+import os
 import tempfile
 import traceback
 from pathlib import Path
@@ -41,15 +43,32 @@ def __handle_file_upload(file_key: str, b_obj: DockerConfig, attr_name: str):
         return
 
     try:
+        # Clean up old certificate file if it exists
+        old_cert_path = getattr(b_obj, attr_name, None)
+        if old_cert_path and Path(old_cert_path).exists():
+            try:
+                os.unlink(old_cert_path)
+                logging.debug(f"Cleaned up old certificate file: {old_cert_path}")
+            except OSError as e:
+                logging.warning(f"Failed to delete old certificate file {old_cert_path}: {e}")
+
         file_content = request.files[file_key].stream.read()
         if len(file_content) != 0:
-            with tempfile.NamedTemporaryFile(mode="wb", dir="/tmp", delete=False) as tmp_file:
+            # Use secure temp directory with restrictive permissions and .pem suffix
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                suffix=".pem",
+                delete=False,
+                prefix=f"docker_{attr_name}_",
+            ) as tmp_file:
                 tmp_file.write(file_content)
                 tmp_file.flush()
+                # Set restrictive permissions (owner read/write only)
+                os.chmod(tmp_file.name, 0o600)
                 setattr(b_obj, attr_name, tmp_file.name)
             return
     except Exception as err:
-        print(err)
+        logging.error(err)
         setattr(b_obj, attr_name, "")
 
 
@@ -76,7 +95,7 @@ def define_docker_admin(app):
         """Get existing DockerConfig or create a new one."""
         docker = DockerConfig.query.filter_by(id=1).first()
         if not docker:
-            print("No docker config was found, setting empty one.")
+            logging.info("No docker config was found, setting empty one.")
             docker = DockerConfig()
             db.session.add(docker)
             db.session.commit()
@@ -98,6 +117,16 @@ def define_docker_admin(app):
 
         # Clear TLS certs if TLS is disabled
         if not config.tls_enabled:
+            # Clean up certificate files before clearing database references
+            for cert_attr in ["ca_cert", "client_cert", "client_key"]:
+                cert_path = getattr(config, cert_attr, None)
+                if cert_path and Path(cert_path).exists():
+                    try:
+                        os.unlink(cert_path)
+                        logging.debug(f"Cleaned up {cert_attr} file: {cert_path}")
+                    except OSError as e:
+                        logging.warning(f"Failed to delete {cert_attr} file {cert_path}: {e}")
+
             config.ca_cert = None
             config.client_cert = None
             config.client_key = None
@@ -117,7 +146,7 @@ def define_docker_admin(app):
         try:
             repos = get_repositories(docker)
         except Exception:
-            print(traceback.print_exc())
+            logging.error(traceback.print_exc())
             repos = []
 
         if len(repos) == 0:
@@ -132,7 +161,7 @@ def define_docker_admin(app):
             if selected_repos is None:
                 selected_repos = []
         except Exception:
-            print(traceback.print_exc())
+            logging.error(traceback.print_exc())
             selected_repos = []
         return selected_repos
 
@@ -193,7 +222,7 @@ def define_docker_status(app):
                     name = Users.query.filter_by(id=i.user_id).first()
                     i.user_id = name.name
         except InternalError as err:
-            print(err)
+            logging.error(err)
             return render_template("admin_docker_status.html", dockers=[])
 
         return render_template("admin_docker_status.html", dockers=docker_tracker)

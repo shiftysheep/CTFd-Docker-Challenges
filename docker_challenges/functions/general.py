@@ -152,7 +152,7 @@ def get_unavailable_ports(docker: DockerConfig) -> list[int]:
     # Get container ports
     r = do_request(docker, "/containers/json?all=1")
     if not r:
-        print("Unable to get list of ports that are unavailable (containers)!")
+        logging.error("Unable to get list of ports that are unavailable (containers)!")
         return []
 
     result = _extract_container_ports(r.json())
@@ -160,7 +160,7 @@ def get_unavailable_ports(docker: DockerConfig) -> list[int]:
     # Get service ports
     r = do_request(docker, "/services?all=1")
     if not r:
-        print("Unable to get list of ports that are unavailable (services)!")
+        logging.error("Unable to get list of ports that are unavailable (services)!")
         return result
 
     rj = r.json()

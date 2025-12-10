@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 from typing import Any
 
@@ -170,15 +171,15 @@ def _get_all_challenges() -> dict[int, DockerChallenge | DockerServiceChallenge]
 
 def _kill_all_containers(
     docker_config: DockerConfig,
-    docker_tracker: list[DockerChallengeTracker],
     challenges: dict[int, DockerChallenge | DockerServiceChallenge],
 ) -> None:
-    """Kill all tracked containers."""
-    for tracker_entry in docker_tracker:
+    """Kill all tracked containers using streaming to prevent memory exhaustion."""
+    # Stream containers in batches of 100 to avoid loading all into memory
+    for tracker_entry in DockerChallengeTracker.query.yield_per(100):
         challenge = challenges.get(tracker_entry.challenge_id)
         if challenge:
-            print(f"type:{challenge.type}")
-            print(f"instance_id:{tracker_entry.instance_id}")
+            logging.debug(f"type:{challenge.type}")
+            logging.debug(f"instance_id:{tracker_entry.instance_id}")
             delete_docker(
                 docker=docker_config,
                 docker_type=challenge.type,
@@ -225,19 +226,21 @@ class KillContainerAPI(Resource):
         full = data.get("all")
 
         docker_config = DockerConfig.query.filter_by(id=1).first_or_404()
-        docker_tracker = DockerChallengeTracker.query.all()
         challenges = _get_all_challenges()
 
         # Kill all containers if requested
         if _is_truthy(full):
-            _kill_all_containers(docker_config, docker_tracker, challenges)
+            _kill_all_containers(docker_config, challenges)
             return "Success", 200
 
         # Kill single container
         if container and container != "null":
-            instance_ids = [c.instance_id for c in docker_tracker]
-            if container in instance_ids:
-                error = _kill_single_container(docker_config, container, docker_tracker, challenges)
+            # Query only the specific container instead of loading all containers
+            tracker_entry = DockerChallengeTracker.query.filter_by(instance_id=container).first()
+            if tracker_entry:
+                error = _kill_single_container(
+                    docker_config, container, [tracker_entry], challenges
+                )
                 if error:
                     return error
                 return "Success", 200
