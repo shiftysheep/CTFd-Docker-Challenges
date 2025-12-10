@@ -52,22 +52,24 @@ def delete_docker(docker: DockerConfig, docker_type: str, instance_id: str) -> N
 
 def _cleanup_stale_containers(docker: DockerConfig, session: Any, is_teams: bool) -> None:
     """Clean up containers older than CONTAINER_STALE_TIMEOUT_SECONDS for current session."""
-    containers = DockerChallengeTracker.query.all()
-    session_id_field = "team_id" if is_teams else "user_id"
+    # Calculate stale timestamp threshold
+    current_time = unix_time(datetime.utcnow())
+    stale_threshold = current_time - CONTAINER_STALE_TIMEOUT_SECONDS
+
+    # Filter at database level: only query current session's stale containers
+    query = DockerChallengeTracker.query
+    query = query.filter_by(team_id=session.id) if is_teams else query.filter_by(user_id=session.id)
+
+    # Further filter by timestamp at database level
+    containers = query.filter(DockerChallengeTracker.timestamp <= str(stale_threshold)).all()
 
     for container in containers:
-        session_id = getattr(container, session_id_field)
-        age_seconds = unix_time(datetime.utcnow()) - int(container.timestamp)
+        challenge = DockerChallenge.query.filter_by(id=container.challenge_id).first()
+        if not challenge:
+            challenge = DockerServiceChallenge.query.filter_by(id=container.challenge_id).first()
 
-        if int(session.id) == int(session_id) and age_seconds >= CONTAINER_STALE_TIMEOUT_SECONDS:
-            challenge = DockerChallenge.query.filter_by(id=container.challenge_id).first()
-            if not challenge:
-                challenge = DockerServiceChallenge.query.filter_by(
-                    id=container.challenge_id
-                ).first()
-
-            if challenge:
-                delete_docker(docker, challenge.type, container.instance_id)
+        if challenge:
+            delete_docker(docker, challenge.type, container.instance_id)
 
 
 def _get_existing_container(
