@@ -108,6 +108,6 @@ def create_container(
     return instance_id, data
 
 
-def delete_container(docker, instance_id):
+def delete_container(docker: DockerConfig, instance_id: str) -> bool:
     r = do_request(docker, f"/containers/{instance_id}?force=true", method="DELETE")
     return r.ok

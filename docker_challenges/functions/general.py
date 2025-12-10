@@ -1,6 +1,8 @@
 import logging
+from typing import Any, Callable
 
 import requests
+from CTFd.utils.config import is_teams_mode
 from requests import Response
 from requests.exceptions import RequestException, Timeout
 
@@ -58,12 +60,17 @@ def do_request(
 
 # For the Docker Config Page. Gets the Current Repositories available on the Docker Server.
 def get_repositories(
-    docker: DockerConfig, tags: bool = False, repos: bool | list = False
+    docker: DockerConfig, tags: bool = False, repos: list[str] | str | None = None
 ) -> list[str]:
     r = do_request(docker, "/images/json?all=1")
 
     if not r:
         return []
+
+    # Convert repos to list if it's a comma-separated string
+    repos_list: list[str] | None = None
+    if repos:
+        repos_list = repos.split(",") if isinstance(repos, str) else repos
 
     result = []
     for image in r.json():
@@ -74,7 +81,7 @@ def get_repositories(
         if image_name == "<none>":
             continue
 
-        if repos and image_name not in repos:
+        if repos_list and image_name not in repos_list:
             continue
         else:
             result.append(image_name if not tags else repo_tags[0])
@@ -204,7 +211,7 @@ def get_required_ports(
     return list(ports)
 
 
-def get_user_container(user, team, challenge) -> DockerChallengeTracker | None:
+def get_user_container(user: Any, team: Any, challenge: Any) -> DockerChallengeTracker | None:
     """
     Get the Docker container/service for the current user or team.
 
@@ -216,8 +223,6 @@ def get_user_container(user, team, challenge) -> DockerChallengeTracker | None:
     Returns:
         DockerChallengeTracker instance if found, None otherwise
     """
-    from CTFd.utils.config import is_teams_mode
-
     query = DockerChallengeTracker.query.filter_by(docker_image=challenge.docker_image)
 
     if is_teams_mode():
@@ -226,7 +231,13 @@ def get_user_container(user, team, challenge) -> DockerChallengeTracker | None:
         return query.filter_by(user_id=user.id).first()
 
 
-def cleanup_container_on_solve(docker: DockerConfig, user, team, challenge, delete_func) -> None:
+def cleanup_container_on_solve(
+    docker: DockerConfig,
+    user: Any,
+    team: Any,
+    challenge: Any,
+    delete_func: Callable[[DockerConfig, str], bool],
+) -> None:
     """
     Delete user's container/service when challenge is solved.
 
