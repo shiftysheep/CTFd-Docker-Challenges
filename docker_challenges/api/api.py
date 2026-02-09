@@ -570,8 +570,9 @@ class SecretBulkDeleteAPI(Resource):
             f"Admin '{username}' performed bulk secret deletion: {deleted_count} deleted, {failed_count} failed"
         )
 
+        all_succeeded = failed_count == 0
         return {
-            "success": True,
+            "success": all_succeeded,
             "deleted": deleted_count,
             "failed": failed_count,
             "errors": errors if errors else [],
