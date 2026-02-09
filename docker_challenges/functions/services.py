@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
 import random
+from typing import TYPE_CHECKING
 
 from ..constants import (
     MAX_PORT_ASSIGNMENT_ATTEMPTS,
@@ -9,7 +12,9 @@ from ..constants import (
     PORT_ASSIGNMENT_MIN,
 )
 from ..functions.general import do_request, get_required_ports, get_secrets
-from ..models.models import DockerConfig, DockerServiceChallenge
+
+if TYPE_CHECKING:
+    from ..models.models import DockerConfig, DockerServiceChallenge
 
 
 def _assign_service_ports(needed_ports: list, blocked_ports: list) -> list:
@@ -100,7 +105,9 @@ def create_service(
         Tuple of (instance_id, service_data) or (None, None) on failure
     """
     # Get challenge configuration
-    challenge = DockerServiceChallenge.query.filter_by(id=challenge_id).first()
+    from ..models.models import DockerServiceChallenge as _ServiceChallenge
+
+    challenge = _ServiceChallenge.query.filter_by(id=challenge_id).first()
     exposed_ports = challenge.exposed_ports if challenge else None
     needed_ports = get_required_ports(docker, image, exposed_ports)
 

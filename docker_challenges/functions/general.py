@@ -1,14 +1,16 @@
+from __future__ import annotations
+
 import base64
 import json
 import logging
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import requests
-from CTFd.utils.config import is_teams_mode
 from requests import Response
 from requests.exceptions import RequestException, Timeout
 
-from ..models.models import DockerChallengeTracker, DockerConfig
+if TYPE_CHECKING:
+    from ..models.models import DockerChallengeTracker, DockerConfig
 
 
 def do_request(
@@ -360,7 +362,9 @@ def get_required_ports(
     return list(ports)
 
 
-def get_user_container(user: Any, team: Any, challenge: Any) -> DockerChallengeTracker | None:
+def get_user_container(
+    user: Any, team: Any, challenge: Any, *, is_teams: bool
+) -> DockerChallengeTracker | None:
     """
     Get the Docker container/service for the current user or team.
 
@@ -368,13 +372,16 @@ def get_user_container(user: Any, team: Any, challenge: Any) -> DockerChallengeT
         user: User object
         team: Team object (or None)
         challenge: Challenge object with docker_image attribute
+        is_teams: Whether CTFd is in teams mode
 
     Returns:
         DockerChallengeTracker instance if found, None otherwise
     """
-    query = DockerChallengeTracker.query.filter_by(docker_image=challenge.docker_image)
+    from ..models.models import DockerChallengeTracker as _Tracker
 
-    if is_teams_mode():
+    query = _Tracker.query.filter_by(docker_image=challenge.docker_image)
+
+    if is_teams:
         return query.filter_by(team_id=team.id).first()
     else:
         return query.filter_by(user_id=user.id).first()
@@ -386,6 +393,8 @@ def cleanup_container_on_solve(
     team: Any,
     challenge: Any,
     delete_func: Callable[[DockerConfig, str], bool],
+    *,
+    is_teams: bool,
 ) -> None:
     """
     Delete user's container/service when challenge is solved.
@@ -396,8 +405,11 @@ def cleanup_container_on_solve(
         team: Team object (or None)
         challenge: Challenge object
         delete_func: Function to call for deletion (delete_container or delete_service)
+        is_teams: Whether CTFd is in teams mode
     """
-    container = get_user_container(user, team, challenge)
+    from ..models.models import DockerChallengeTracker as _Tracker
+
+    container = get_user_container(user, team, challenge, is_teams=is_teams)
     if container:
         delete_func(docker, container.instance_id)
-        DockerChallengeTracker.query.filter_by(instance_id=container.instance_id).delete()
+        _Tracker.query.filter_by(instance_id=container.instance_id).delete()

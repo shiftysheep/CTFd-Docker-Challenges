@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
 import random
+from typing import TYPE_CHECKING
 
 from ..constants import (
     MAX_PORT_ASSIGNMENT_ATTEMPTS,
@@ -9,7 +12,9 @@ from ..constants import (
     PORT_ASSIGNMENT_MIN,
 )
 from ..functions.general import do_request, get_required_ports
-from ..models.models import DockerConfig
+
+if TYPE_CHECKING:
+    from ..models.models import DockerConfig
 
 
 def find_existing(docker: DockerConfig, name: str) -> str | None:

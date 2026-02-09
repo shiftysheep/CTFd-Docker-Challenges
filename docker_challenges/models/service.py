@@ -13,6 +13,7 @@ from CTFd.models import (
 )
 from CTFd.plugins.challenges import BaseChallenge, ChallengeResponse
 from CTFd.plugins.flags import get_flag_class
+from CTFd.utils.config import is_teams_mode
 from CTFd.utils.uploads import delete_file
 from CTFd.utils.user import get_ip
 from flask import Blueprint
@@ -192,7 +193,9 @@ class DockerServiceChallengeType(BaseChallenge):
         submission = data["submission"].strip()
         docker = DockerConfig.query.filter_by(id=1).first()
         try:
-            cleanup_container_on_solve(docker, user, team, challenge, delete_service)
+            cleanup_container_on_solve(
+                docker, user, team, challenge, delete_service, is_teams=is_teams_mode()
+            )
         except Exception as e:
             # Service may have already been deleted or never created
             logging.debug(f"Failed to delete service on solve: {e}")
