@@ -13,6 +13,8 @@ from ..constants import (
 )
 from ..functions.general import do_request, get_required_ports, get_secrets
 
+# Type-only imports: keeps functions testable without SQLAlchemy initialization.
+# Runtime model access uses lazy imports inside individual functions.
 if TYPE_CHECKING:
     from ..models.models import DockerConfig, DockerServiceChallenge
 

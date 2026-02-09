@@ -9,6 +9,8 @@ import requests
 from requests import Response
 from requests.exceptions import RequestException, Timeout
 
+# Type-only imports: keeps functions testable without SQLAlchemy initialization.
+# Runtime model access uses lazy imports inside individual functions.
 if TYPE_CHECKING:
     from ..models.models import DockerChallengeTracker, DockerConfig
 
@@ -379,7 +381,10 @@ def get_user_container(
     """
     from ..models.models import DockerChallengeTracker as _Tracker
 
-    query = _Tracker.query.filter_by(docker_image=challenge.docker_image)
+    query = _Tracker.query.filter_by(
+        docker_image=challenge.docker_image,
+        challenge_id=challenge.id,
+    )
 
     if is_teams:
         return query.filter_by(team_id=team.id).first()
