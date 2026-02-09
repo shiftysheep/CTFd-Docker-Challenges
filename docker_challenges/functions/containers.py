@@ -91,7 +91,7 @@ def create_container(
     """
     needed_ports = get_required_ports(docker, image, exposed_ports)
     # MD5 used for container naming only, not security
-    team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
+    team = hashlib.md5(team.encode("utf-8"), usedforsecurity=False).hexdigest()[:10]
     container_name = "{}_{}".format(
         image.replace(":", "_").replace("/", "_").replace(".", "_"),
         team,

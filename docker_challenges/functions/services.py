@@ -115,7 +115,7 @@ def create_service(
 
     # Generate unique service name
     # MD5 used for service naming only, not security
-    team_hash = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
+    team_hash = hashlib.md5(team.encode("utf-8"), usedforsecurity=False).hexdigest()[:10]
     service_name = f"svc_{image.split(':')[1]}{team_hash}"
 
     # Assign available ports and build secrets list
