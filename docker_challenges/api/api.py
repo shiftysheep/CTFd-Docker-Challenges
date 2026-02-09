@@ -471,10 +471,10 @@ class SecretAPI(Resource):
             return {"success": False, "error": "Docker configuration not found"}, 500
 
         # Validate secure transport (TLS/HTTPS required for secret transmission)
-        if not docker.tls_enabled and not request.is_secure:
+        if not docker.tls_enabled or not request.is_secure:
             return {
                 "success": False,
-                "error": "Docker API is not using TLS. Secrets cannot be transmitted securely. Enable HTTPS or configure Docker TLS.",
+                "error": "Secure transport required. Both HTTPS (browser) and Docker TLS must be enabled to transmit secrets safely.",
             }, 400
 
         # Check uniqueness using helper function
