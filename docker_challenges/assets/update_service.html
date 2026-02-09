@@ -32,6 +32,9 @@
         size="10"
         multiple
     ></select>
+    <button type="button" class="btn btn-sm btn-success mt-2" id="add-secret-btn">
+        <i class="fas fa-plus"></i> Add Secret
+    </button>
     <script>
         document.querySelector('#dockersecrets_select').addEventListener('change', function () {
             document.querySelector('#docker_secrets_input').value = Array.from(this.selectedOptions)
@@ -87,6 +90,58 @@
         </div>
     </div>
 </div>
+
+<!-- Add Secret Modal -->
+<div class="modal fade" id="addSecretModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Secret</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quickSecretForm">
+                    <div class="mb-3">
+                        <label for="quickSecretName" class="form-label">Secret Name</label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="quickSecretName"
+                            pattern="[a-zA-Z0-9._-]+"
+                            required
+                        />
+                        <small class="text-muted"
+                            >Letters, numbers, dots, underscores, hyphens only</small
+                        >
+                    </div>
+                    <div class="mb-3">
+                        <label for="quickSecretValue" class="form-label">Secret Value</label>
+                        <textarea
+                            class="form-control"
+                            id="quickSecretValue"
+                            rows="3"
+                            required
+                        ></textarea>
+                    </div>
+                    <div
+                        id="quickSecretError"
+                        class="alert alert-danger"
+                        style="display: none"
+                    ></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="submitQuickSecret">
+                    Create & Select
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %} {% block footer %}
 <script>
     var DOCKER_IMAGE = '{{ challenge.docker_image }}';

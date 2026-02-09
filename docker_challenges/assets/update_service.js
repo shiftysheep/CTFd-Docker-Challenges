@@ -4,6 +4,12 @@ import {
     loadExistingPorts as loadExistingPortsShared,
     setupPortValidation,
 } from './shared/portManagement.js';
+import {
+    fetchDockerImages,
+    fetchDockerSecrets,
+    setupQuickSecretModal,
+    refreshSecretsDropdown,
+} from './shared/secretManagement.js';
 
 // Wait for CTFd to be available before running plugin code
 function waitForCTFd(callback) {
@@ -53,117 +59,27 @@ waitForCTFd(() => {
         // Initialize with one empty port row
         loadExistingPorts();
 
-        // Fetch Docker images
-        fetch('/api/v1/docker')
-            .then((response) => response.json())
-            .then((result) => {
-                const images = result.data.sort((a, b) => a.name.localeCompare(b.name));
-                const selectElement = document.getElementById('dockerimage_select');
-
-                images.forEach((item) => {
-                    const option = document.createElement('option');
-                    option.value = item.name;
-                    option.textContent = item.name;
-                    selectElement.appendChild(option);
-                });
-
+        // Fetch Docker images using shared module
+        fetchDockerImages('dockerimage_select', {
+            loadExistingPorts: loadExistingPorts,
+            onLoad: (selectElement) => {
                 // Pre-select current Docker image
                 selectElement.value = DOCKER_IMAGE;
+            },
+        });
 
-                // Auto-populate exposed ports when image changes
-                selectElement.addEventListener('change', function () {
-                    const imageName = this.value;
-                    if (!imageName) return;
+        // Fetch Docker secrets using shared module
+        fetchDockerSecrets('dockersecrets_select', {
+            selectedSecrets: SECRETS,
+        });
 
-                    fetch(`/api/v1/image_ports?image=${encodeURIComponent(imageName)}`)
-                        .then((response) => response.json())
-                        .then((result) => {
-                            if (result.success) {
-                                const portsTextarea = document.getElementById('exposed_ports');
-
-                                // Always update ports based on selected image
-                                if (result.ports && result.ports.length > 0) {
-                                    portsTextarea.value = result.ports.join(',');
-                                } else {
-                                    // Clear ports if image has none
-                                    portsTextarea.value = '';
-                                }
-                                loadExistingPorts(); // Reload UI with new ports
-                            } else {
-                                ezal({
-                                    title: 'Error Loading Ports',
-                                    body: 'Failed to fetch exposed ports for the selected image. Please try again or configure ports manually.',
-                                    button: 'Got it!',
-                                });
-                            }
-                        })
-                        .catch((error) => {
-                            console.error('Error fetching image ports:', error);
-                            ezal({
-                                title: 'Network Error',
-                                body: 'Could not connect to server to fetch image ports. Please check your connection and try again.',
-                                button: 'Got it!',
-                            });
-                        });
-                });
-            })
-            .catch((error) => {
-                console.error('Error fetching Docker images:', error);
-                ezal({
-                    title: 'Error Loading Images',
-                    body: 'Failed to fetch available Docker images. The challenge form may not work correctly. Please refresh the page or contact an administrator.',
-                    button: 'Got it!',
-                });
-            });
-
-        // Fetch Docker secrets
-        fetch('/api/v1/secret')
-            .then((response) => response.json())
-            .then((result) => {
-                // Handle missing data field (API error responses)
-                if (!result.data) {
-                    console.warn('No secrets data returned from API');
-                    return;
-                }
-
-                const secrets = result.data.sort((a, b) => a.name.localeCompare(b.name));
-                const selectElement = document.getElementById('dockersecrets_select');
-
-                // Handle empty secrets list (e.g., Docker not in swarm mode)
-                if (secrets.length === 0) {
-                    const option = document.createElement('option');
-                    option.value = '';
-                    option.textContent = '(No secrets available - Docker not in swarm mode)';
-                    selectElement.appendChild(option);
-                    selectElement.disabled = true;
-                    return;
-                }
-
-                secrets.forEach((item) => {
-                    const option = document.createElement('option');
-                    option.value = item.id;
-                    option.textContent = item.name;
-                    selectElement.appendChild(option);
-                });
-
-                // Pre-select current secrets
-                document.querySelectorAll('#dockersecrets_select option').forEach((option) => {
-                    if (SECRETS.includes(option.value)) {
-                        option.selected = true;
-                    }
-                });
-            })
-            .catch((error) => {
-                console.error('Error fetching Docker secrets:', error);
-                // Note: ezal is a CTFd global function that may not be available in all contexts
-                if (typeof ezal !== 'undefined') {
-                    ezal({
-                        title: 'Error Loading Secrets',
-                        body: 'Failed to fetch available Docker secrets. Service challenges may not work correctly. Please refresh the page or contact an administrator.',
-                        button: 'Got it!',
-                    });
-                }
-            });
+        // Setup quick secret creation modal using shared module
+        setupQuickSecretModal(
+            'add-secret-btn',
+            'addSecretModal',
+            'quickSecretForm',
+            (newSecretId) => refreshSecretsDropdown('dockersecrets_select', newSecretId)
+        );
 
         // Setup form validation using shared module
         setupPortValidation();

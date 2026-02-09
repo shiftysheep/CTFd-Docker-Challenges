@@ -1,3 +1,5 @@
+import base64
+import json
 import logging
 from typing import Any, Callable
 
@@ -16,6 +18,20 @@ def do_request(
     method: str = "GET",
     data: dict | str | None = None,
 ) -> list | Response:
+    """
+    Execute HTTP request to Docker API with optional TLS support.
+
+    Args:
+        docker: DockerConfig instance containing hostname and TLS settings
+        url: API endpoint path (e.g., "/containers/json")
+        headers: Optional custom headers (defaults to application/json)
+        method: HTTP method - GET, POST, DELETE, etc. (default: GET)
+        data: Optional request body as dict or JSON string
+
+    Returns:
+        Response object on success, empty list on connection failure.
+        Handles TLS certificate validation when docker.tls_enabled is True.
+    """
     tls = docker.tls_enabled
     prefix = "https" if tls else "http"
     host = docker.hostname
@@ -62,6 +78,17 @@ def do_request(
 def get_repositories(
     docker: DockerConfig, tags: bool = False, repos: list[str] | str | None = None
 ) -> list[str]:
+    """
+    Retrieve list of Docker images/repositories available on Docker host.
+
+    Args:
+        docker: DockerConfig instance with API connection details
+        tags: If True, return full image tags (e.g., "nginx:latest"). If False, return only repository names (e.g., "nginx")
+        repos: Optional filter - only return images matching these repository names. Can be list or comma-separated string
+
+    Returns:
+        List of unique image names or tags. Returns empty list if Docker API is unreachable.
+    """
     r = do_request(docker, "/images/json?all=1")
 
     if not r:
@@ -90,6 +117,16 @@ def get_repositories(
 
 
 def get_docker_info(docker: DockerConfig) -> str:
+    """
+    Retrieve Docker version and component information.
+
+    Args:
+        docker: DockerConfig instance with API connection details
+
+    Returns:
+        Formatted string containing Docker version, OS, and component details.
+        Returns error message if Docker API is unreachable.
+    """
     r = do_request(docker, "/version")
 
     if not r:
@@ -107,7 +144,40 @@ def get_docker_info(docker: DockerConfig) -> str:
     return output
 
 
+def is_swarm_mode(docker: DockerConfig) -> bool:
+    """
+    Check if Docker is running in swarm mode.
+
+    Args:
+        docker: DockerConfig instance
+
+    Returns:
+        True if swarm mode is active, False otherwise
+    """
+    r = do_request(docker, "/secrets")
+    if not r:
+        return False
+
+    response_data = r.json()
+
+    # If response is a dict with "message" key, Docker is not in swarm mode
+    if isinstance(response_data, dict) and "message" in response_data:
+        return False
+
+    return True
+
+
 def get_secrets(docker: DockerConfig) -> list[dict[str, str]]:
+    """
+    Retrieve list of Docker secrets from swarm.
+
+    Args:
+        docker: DockerConfig instance with API connection details
+
+    Returns:
+        List of secret dictionaries with 'ID' and 'Name' keys.
+        Returns empty list if Docker is not in swarm mode.
+    """
     r = do_request(docker, "/secrets")
     response_data = r.json()
 
@@ -123,6 +193,85 @@ def get_secrets(docker: DockerConfig) -> list[dict[str, str]]:
         }
         secrets_list.append(secret_dict)
     return secrets_list
+
+
+def create_secret(docker: DockerConfig, name: str, data: str) -> tuple[str | None, bool]:
+    """
+    Create a Docker secret with base64-encoded data.
+
+    Args:
+        docker: DockerConfig instance with API connection details
+        name: Secret name (must be unique)
+        data: Secret value in plaintext (will be base64-encoded)
+
+    Returns:
+        Tuple of (secret_id, success_bool)
+        - (secret_id, True) on successful creation
+        - (None, False) on failure (name conflict, connection error, etc.)
+    """
+    # Base64 encode data server-side for integrity
+    encoded_data = base64.b64encode(data.encode("utf-8")).decode("utf-8")
+
+    # Build payload matching Docker Secrets API specification
+    payload = json.dumps({"Name": name, "Data": encoded_data, "Labels": {}})
+
+    # POST to /secrets/create endpoint
+    r = do_request(docker, "/secrets/create", method="POST", data=payload)
+
+    # Handle responses
+    if not r:
+        logging.error("Failed to contact Docker API for secret creation")
+        return None, False
+
+    if r.status_code == 201:
+        # Success - extract ID from response
+        secret_id = r.json().get("ID")
+        logging.info(f"Successfully created secret '{name}' with ID {secret_id}")
+        return secret_id, True
+    elif r.status_code == 409:
+        # Name conflict - log and return failure
+        logging.warning(f"Secret name '{name}' already exists")
+        return None, False
+    else:
+        # Other errors - redact response if it contains secret data
+        error_message = r.text
+        if "Data" in error_message or "base64" in error_message:
+            error_message = "[REDACTED - contains secret data]"
+        logging.error(f"Failed to create secret '{name}': {r.status_code} - {error_message}")
+        return None, False
+
+
+def delete_secret(docker: DockerConfig, secret_id: str) -> bool:
+    """
+    Delete a Docker secret by ID.
+
+    Args:
+        docker: DockerConfig instance
+        secret_id: Docker secret ID to delete
+
+    Returns:
+        True if deletion succeeded, False otherwise
+
+    Note:
+        Docker returns 409 if secret is in use by a service.
+        This function lets Docker handle that check (no pre-validation).
+    """
+    r = do_request(docker, f"/secrets/{secret_id}", method="DELETE")
+
+    if not r:
+        logging.error(f"Failed to contact Docker API for secret deletion: {secret_id}")
+        return False
+
+    if r.ok:  # 204 No Content
+        logging.info(f"Successfully deleted secret {secret_id}")
+        return True
+    elif r.status_code == 409:
+        # Secret in use - Docker provides message
+        logging.warning(f"Cannot delete secret {secret_id}: {r.json().get('message', 'in use')}")
+        return False
+    else:
+        logging.error(f"Failed to delete secret {secret_id}: {r.status_code}")
+        return False
 
 
 def _extract_container_ports(containers_json: list[dict]) -> list[int]:

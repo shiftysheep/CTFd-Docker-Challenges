@@ -69,6 +69,19 @@ def create_container(
     portbl: list[int],
     exposed_ports: str | None = None,
 ) -> tuple[str, str]:
+    """
+    Create a standalone Docker container for a challenge instance.
+
+    Args:
+        docker: DockerConfig instance with API connection details
+        image: Docker image name (e.g., "registry/image:tag")
+        team: Team/user identifier for unique container naming
+        portbl: List of blocked ports to avoid conflicts
+        exposed_ports: Optional comma-separated port specs (e.g., "80/tcp,443/tcp")
+
+    Returns:
+        Tuple of (container_id, container_name) on success.
+    """
     needed_ports = get_required_ports(docker, image, exposed_ports)
     # MD5 used for container naming only, not security
     team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
@@ -109,5 +122,15 @@ def create_container(
 
 
 def delete_container(docker: DockerConfig, instance_id: str) -> bool:
+    """
+    Delete a Docker container by ID with force flag.
+
+    Args:
+        docker: DockerConfig instance with API connection details
+        instance_id: Docker container ID to delete
+
+    Returns:
+        True if deletion succeeded, False otherwise.
+    """
     r = do_request(docker, f"/containers/{instance_id}?force=true", method="DELETE")
     return r.ok
