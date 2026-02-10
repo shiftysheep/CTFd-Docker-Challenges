@@ -308,7 +308,7 @@ class ContainerAPI(Resource):
         docker = DockerConfig.query.filter_by(id=1).first()
         challenge = _get_challenge_by_id(challenge_id)
         if not challenge:
-            return {"success": False, "error": "Challenge not found"}, 403
+            return {"success": False, "error": "Challenge not found"}, 404
 
         is_teams = is_teams_mode()
         session = get_current_team() if is_teams else get_current_user()
