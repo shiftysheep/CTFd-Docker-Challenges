@@ -92,3 +92,20 @@ This document summarizes major architectural decisions made in the CTFd-Docker-C
 **Rationale**: Automated changelog generation, semantic versioning, consistent commit history for project tracking.
 **Impact**: Contributors must format commit messages per convention or pre-commit hook fails.
 **Reference**: `pyproject.toml:tool.commitizen`, `CONTRIBUTING.md`
+
+## Secrets Transmission Security
+
+**Decision**: Require both HTTPS (browser↔server) and Docker TLS (server↔Docker API) before allowing secret creation.
+
+**Rationale**: Secrets traverse two network legs — the browser submitting the secret value to CTFd, and CTFd forwarding the value to the Docker daemon. HTTPS encrypts the first leg and Docker TLS encrypts the second. If either leg is unencrypted, an attacker performing a man-in-the-middle attack on that segment could capture secret values in plaintext. Enforcing both layers ensures end-to-end encryption of secret material across the entire transmission path.
+
+**Attack vectors prevented**:
+
+- **Browser↔Server (no HTTPS)**: An attacker on the network between the admin's browser and the CTFd server intercepts the POST request containing the secret value.
+- **Server↔Docker API (no TLS)**: An attacker on the network between the CTFd server and the Docker daemon intercepts the API call containing the secret value.
+
+**Admin configuration**: Administrators must enable HTTPS on the CTFd instance AND configure TLS on the Docker daemon for secrets functionality to work. If either encryption layer is missing, the API rejects secret creation with HTTP 400 and a descriptive error message explaining which layers are required.
+
+**Audit logging**: Secret names are logged with the acting admin's username for audit trails, but secret values are never logged to prevent credential exposure in log files.
+
+**Reference**: `api/api.py:474-496` — `SecretAPI.post()` checks `docker.tls_enabled` and `request.is_secure` before proceeding
