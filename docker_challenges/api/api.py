@@ -500,6 +500,9 @@ class SecretAPI(Resource):
         if not secret_id:
             return {"success": False, "error": "Secret ID is required"}, 400
 
+        if not re.match(r"^[a-zA-Z0-9_-]+$", secret_id):
+            return {"success": False, "error": "Invalid secret ID format"}, 400
+
         docker = DockerConfig.query.filter_by(id=1).first()
         if not docker:
             return {"success": False, "error": "Docker configuration not found"}, 500
