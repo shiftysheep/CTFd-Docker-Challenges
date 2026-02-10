@@ -146,3 +146,68 @@ def test_delete_secret_returns_false_on_connection_failure(mock_docker_config):
     result = delete_secret(mock_docker_config, "sec789")
 
     assert result is False
+
+
+# ============================================================================
+# Special character/encoding edge cases
+# ============================================================================
+
+
+@pytest.mark.medium
+@responses.activate
+def test_create_secret_with_unicode_value(mock_docker_config):
+    """create_secret handles unicode characters in secret value."""
+    responses.add(
+        responses.POST,
+        "http://localhost:2375/secrets/create",
+        json={"ID": "unicode_sec"},
+        status=201,
+    )
+
+    secret_id, success = create_secret(mock_docker_config, "unicode_secret", "p@ssw\u00f6rd\u2603")
+
+    assert success is True
+    assert secret_id == "unicode_sec"
+    # Verify base64 round-trip preserves unicode
+    payload = json.loads(responses.calls[0].request.body)
+    decoded = base64.b64decode(payload["Data"]).decode("utf-8")
+    assert decoded == "p@ssw\u00f6rd\u2603"
+
+
+@pytest.mark.medium
+@responses.activate
+def test_create_secret_with_newlines_in_value(mock_docker_config):
+    """create_secret handles multiline values (e.g., PEM certificates)."""
+    pem_value = "-----BEGIN CERTIFICATE-----\nMIIBxTCCAW...\n-----END CERTIFICATE-----"
+    responses.add(
+        responses.POST,
+        "http://localhost:2375/secrets/create",
+        json={"ID": "pem_sec"},
+        status=201,
+    )
+
+    secret_id, success = create_secret(mock_docker_config, "tls_cert", pem_value)
+
+    assert success is True
+    payload = json.loads(responses.calls[0].request.body)
+    decoded = base64.b64decode(payload["Data"]).decode("utf-8")
+    assert decoded == pem_value
+    assert "\n" in decoded
+
+
+@pytest.mark.medium
+@responses.activate
+def test_create_secret_with_base64_padding_chars(mock_docker_config):
+    """create_secret produces correct base64 padding for short values."""
+    responses.add(
+        responses.POST,
+        "http://localhost:2375/secrets/create",
+        json={"ID": "pad_sec"},
+        status=201,
+    )
+
+    secret_id, success = create_secret(mock_docker_config, "short_secret", "a")
+
+    assert success is True
+    payload = json.loads(responses.calls[0].request.body)
+    assert payload["Data"] == "YQ=="  # base64("a") with padding

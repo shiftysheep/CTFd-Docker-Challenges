@@ -374,3 +374,137 @@ class TestSecretBulkDeleteAPI:
         assert result["deleted"] == 0
         assert result["failed"] == 0
         mock_delete.assert_not_called()
+
+
+# ============================================================================
+# Audit logging tests
+# ============================================================================
+
+
+class TestSecretAPIAuditLogging:
+    """Tests for audit logging in secret API endpoints."""
+
+    @pytest.mark.medium
+    @patch("docker_challenges.api.api.logging")
+    @patch("docker_challenges.api.api.get_current_user")
+    @patch("docker_challenges.api.api.create_secret")
+    @patch("docker_challenges.api.api.get_secrets")
+    @patch("docker_challenges.api.api.request")
+    @patch("docker_challenges.api.api.DockerConfig")
+    def test_post_logs_admin_username_and_secret_name(
+        self, mock_config_cls, mock_request, mock_get_secrets, mock_create, mock_user, mock_logging
+    ):
+        """POST logs admin username and secret name but NOT the secret value."""
+        mock_request.get_json.return_value = {"name": "db_password", "data": "super_secret_val"}
+        mock_request.form = {}
+        mock_request.is_secure = True
+
+        mock_docker = MagicMock()
+        mock_docker.tls_enabled = True
+        mock_config_cls.query.filter_by.return_value.first.return_value = mock_docker
+
+        mock_get_secrets.return_value = []
+        mock_create.return_value = ("sec_id_123", True)
+        mock_user.return_value = MagicMock(name="admin_user")
+
+        api = SecretAPI()
+        result, status = api.post()
+
+        assert status == 201
+        # Verify logging was called with username and secret name
+        mock_logging.info.assert_called()
+        log_call_args = str(mock_logging.info.call_args)
+        assert "admin_user" in log_call_args
+        assert "db_password" in log_call_args
+        # Verify secret VALUE is NOT logged
+        assert "super_secret_val" not in log_call_args
+
+    @pytest.mark.medium
+    @patch("docker_challenges.api.api.logging")
+    @patch("docker_challenges.api.api.get_current_user")
+    @patch("docker_challenges.api.api.get_secrets")
+    @patch("docker_challenges.api.api.delete_secret")
+    @patch("docker_challenges.api.api.DockerConfig")
+    def test_delete_logs_admin_username_and_secret_id(
+        self, mock_config_cls, mock_delete, mock_get_secrets, mock_user, mock_logging
+    ):
+        """DELETE logs admin username and secret ID."""
+        mock_docker = MagicMock()
+        mock_config_cls.query.filter_by.return_value.first.return_value = mock_docker
+        mock_delete.return_value = True
+        mock_user.return_value = MagicMock(name="admin_user")
+
+        api = SecretAPI()
+        result, status = api.delete("sec_abc123")
+
+        assert status == 200
+        mock_logging.info.assert_called()
+        log_call_args = str(mock_logging.info.call_args)
+        assert "admin_user" in log_call_args
+        assert "sec_abc123" in log_call_args
+
+    @pytest.mark.medium
+    @patch("docker_challenges.api.api.logging")
+    @patch("docker_challenges.api.api.get_current_user")
+    @patch("docker_challenges.api.api.delete_secret")
+    @patch("docker_challenges.api.api.get_secrets")
+    @patch("docker_challenges.api.api.DockerConfig")
+    def test_bulk_delete_logs_counts(
+        self, mock_config_cls, mock_get_secrets, mock_delete, mock_user, mock_logging
+    ):
+        """Bulk delete logs deleted/failed counts."""
+        mock_docker = MagicMock()
+        mock_config_cls.query.filter_by.return_value.first.return_value = mock_docker
+        mock_get_secrets.return_value = [
+            {"ID": "s1", "Name": "secret_one"},
+            {"ID": "s2", "Name": "secret_two"},
+        ]
+        mock_delete.return_value = True
+        mock_user.return_value = MagicMock(name="admin_user")
+
+        api = SecretBulkDeleteAPI()
+        api.delete()
+
+        mock_logging.info.assert_called()
+        log_call_args = str(mock_logging.info.call_args)
+        assert "admin_user" in log_call_args
+
+
+# ============================================================================
+# TOCTOU race condition tests
+# ============================================================================
+
+
+class TestSecretAPITOCTOU:
+    """Tests documenting TOCTOU race condition awareness."""
+
+    @pytest.mark.medium
+    @patch("docker_challenges.api.api.get_current_user")
+    @patch("docker_challenges.api.api.create_secret")
+    @patch("docker_challenges.api.api.get_secrets")
+    @patch("docker_challenges.api.api.request")
+    @patch("docker_challenges.api.api.DockerConfig")
+    def test_post_handles_docker_409_when_uniqueness_check_passes(
+        self, mock_config_cls, mock_request, mock_get_secrets, mock_create, mock_user
+    ):
+        """POST returns 500 when uniqueness check passes but Docker returns conflict.
+
+        Documents TOCTOU gap: another request may create the same secret between
+        our uniqueness check and the Docker API call. Docker's 409 acts as safety net.
+        """
+        mock_request.get_json.return_value = {"name": "race_secret", "data": "value"}
+        mock_request.form = {}
+        mock_request.is_secure = True
+
+        mock_docker = MagicMock()
+        mock_docker.tls_enabled = True
+        mock_config_cls.query.filter_by.return_value.first.return_value = mock_docker
+
+        mock_get_secrets.return_value = []  # Uniqueness check passes
+        mock_create.return_value = (None, False)  # But Docker rejects (race condition)
+
+        api = SecretAPI()
+        result, status = api.post()
+
+        assert status == 500
+        assert result["success"] is False

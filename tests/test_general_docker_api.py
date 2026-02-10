@@ -487,3 +487,34 @@ def test_get_unavailable_ports_returns_empty_list_when_container_endpoint_unreac
     result = get_unavailable_ports(mock_docker_config)
 
     assert result == []
+
+
+# ============================================================================
+# do_request None-return safety tests
+# ============================================================================
+
+
+@pytest.mark.medium
+def test_get_secrets_returns_empty_on_none_response(mock_docker_config):
+    """get_secrets returns empty list when do_request returns None."""
+    mock_docker_config.hostname = ""  # Triggers None return from do_request
+    result = get_secrets(mock_docker_config)
+    assert result == []
+
+
+@pytest.mark.medium
+def test_delete_container_returns_false_on_none_response(mock_docker_config):
+    """delete_container returns False when do_request returns None."""
+    mock_docker_config.hostname = ""
+    from docker_challenges.functions.containers import delete_container
+    result = delete_container(mock_docker_config, "nonexistent_id")
+    assert result is False
+
+
+@pytest.mark.medium
+def test_delete_service_returns_false_on_none_response(mock_docker_config):
+    """delete_service returns False when do_request returns None."""
+    mock_docker_config.hostname = ""
+    from docker_challenges.functions.services import delete_service
+    result = delete_service(mock_docker_config, "nonexistent_id")
+    assert result is False
