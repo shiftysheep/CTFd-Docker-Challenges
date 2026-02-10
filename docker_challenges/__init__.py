@@ -48,9 +48,9 @@ def __handle_file_upload(file_key: str, b_obj: DockerConfig, attr_name: str):
         if old_cert_path and Path(old_cert_path).exists():
             try:
                 os.unlink(old_cert_path)
-                logging.debug(f"Cleaned up old certificate file: {old_cert_path}")
+                logging.debug("Cleaned up old certificate file: %s", old_cert_path)
             except OSError as e:
-                logging.warning(f"Failed to delete old certificate file {old_cert_path}: {e}")
+                logging.warning("Failed to delete old certificate file %s: %s", old_cert_path, e)
 
         file_content = request.files[file_key].stream.read()
         if len(file_content) != 0:
@@ -123,9 +123,9 @@ def define_docker_admin(app):
                 if cert_path and Path(cert_path).exists():
                     try:
                         os.unlink(cert_path)
-                        logging.debug(f"Cleaned up {cert_attr} file: {cert_path}")
+                        logging.debug("Cleaned up %s file: %s", cert_attr, cert_path)
                     except OSError as e:
-                        logging.warning(f"Failed to delete {cert_attr} file {cert_path}: {e}")
+                        logging.warning("Failed to delete %s file %s: %s", cert_attr, cert_path, e)
 
             config.ca_cert = None
             config.client_cert = None
@@ -260,7 +260,7 @@ def define_docker_secrets(app):
             secrets_sorted = sorted(secrets, key=lambda s: s["Name"])
 
         except Exception as err:
-            logging.error(f"Error loading secrets: {err}")
+            logging.error("Error loading secrets: %s", err)
             return render_template(
                 "admin_docker_secrets.html",
                 secrets=[],

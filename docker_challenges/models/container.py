@@ -185,7 +185,7 @@ class DockerChallengeType(BaseChallenge):
             )
         except Exception as e:
             # Container may have already been deleted or never created
-            logging.debug(f"Failed to delete container on solve: {e}")
+            logging.debug("Failed to delete container on solve: %s", e)
         solve = Solves(
             user_id=user.id,
             team_id=team.id if team else None,

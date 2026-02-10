@@ -62,7 +62,7 @@ def do_request(
         request_args["cert"] = (docker.client_cert, docker.client_key)
         request_args["verify"] = docker.ca_cert
 
-    logging.info(f"Request to Docker: {request_args['method']} {request_args['url']}")
+    logging.info("Request to Docker: %s %s", request_args["method"], request_args["url"])
 
     resp = []
     try:
@@ -73,7 +73,7 @@ def do_request(
     except Timeout:
         logging.error("Request timed out.")
     except RequestException as err:
-        logging.error(f"An error occurred while making the request: {err}")
+        logging.error("An error occurred while making the request: %s", err)
 
     return resp
 
@@ -230,18 +230,18 @@ def create_secret(docker: DockerConfig, name: str, data: str) -> tuple[str | Non
     if r.status_code == 201:
         # Success - extract ID from response
         secret_id = r.json().get("ID")
-        logging.info(f"Successfully created secret '{name}' with ID {secret_id}")
+        logging.info("Successfully created secret '%s' with ID %s", name, secret_id)
         return secret_id, True
     elif r.status_code == 409:
         # Name conflict - log and return failure
-        logging.warning(f"Secret name '{name}' already exists")
+        logging.warning("Secret name '%s' already exists", name)
         return None, False
     else:
         # Other errors - redact response if it contains secret data
         error_message = r.text
         if "Data" in error_message or "base64" in error_message:
             error_message = "[REDACTED - contains secret data]"
-        logging.error(f"Failed to create secret '{name}': {r.status_code} - {error_message}")
+        logging.error("Failed to create secret '%s': %s - %s", name, r.status_code, error_message)
         return None, False
 
 
@@ -263,18 +263,18 @@ def delete_secret(docker: DockerConfig, secret_id: str) -> bool:
     r = do_request(docker, f"/secrets/{secret_id}", method="DELETE")
 
     if not r:
-        logging.error(f"Failed to contact Docker API for secret deletion: {secret_id}")
+        logging.error("Failed to contact Docker API for secret deletion: %s", secret_id)
         return False
 
     if r.ok:  # 204 No Content
-        logging.info(f"Successfully deleted secret {secret_id}")
+        logging.info("Successfully deleted secret %s", secret_id)
         return True
     elif r.status_code == 409:
         # Secret in use - Docker provides message
-        logging.warning(f"Cannot delete secret {secret_id}: {r.json().get('message', 'in use')}")
+        logging.warning("Cannot delete secret %s: %s", secret_id, r.json().get("message", "in use"))
         return False
     else:
-        logging.error(f"Failed to delete secret {secret_id}: {r.status_code}")
+        logging.error("Failed to delete secret %s: %s", secret_id, r.status_code)
         return False
 
 

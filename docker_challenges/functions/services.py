@@ -135,8 +135,8 @@ def create_service(
     r = do_request(docker, url="/services/create", method="POST", data=data)
     instance_id = r.json().get("ID")
     if not instance_id:
-        logging.error(f"Unable to create service {service_name} with image {image}")
-        logging.error(f"Error: {r.json()}")
+        logging.error("Unable to create service %s with image %s", service_name, image)
+        logging.error("Error: %s", r.json())
         return None, None
 
     return instance_id, data

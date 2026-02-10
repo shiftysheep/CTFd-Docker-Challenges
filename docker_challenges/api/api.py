@@ -182,8 +182,8 @@ def _kill_all_containers(
     for tracker_entry in DockerChallengeTracker.query.yield_per(100):
         challenge = challenges.get(tracker_entry.challenge_id)
         if challenge:
-            logging.debug(f"type:{challenge.type}")
-            logging.debug(f"instance_id:{tracker_entry.instance_id}")
+            logging.debug("type:%s", challenge.type)
+            logging.debug("instance_id:%s", tracker_entry.instance_id)
             delete_docker(
                 docker=docker_config,
                 docker_type=challenge.type,
@@ -491,7 +491,7 @@ class SecretAPI(Resource):
         # Audit logging (log name only, NOT value)
         user = get_current_user()
         username = user.name if user else "Unknown"
-        logging.info(f"Admin '{username}' created secret '{secret_name}' (ID: {secret_id})")
+        logging.info("Admin '%s' created secret '%s' (ID: %s)", username, secret_name, secret_id)
 
         return {"success": True, "data": {"id": secret_id, "name": secret_name}}, 201
 
@@ -515,7 +515,7 @@ class SecretAPI(Resource):
             # Audit log (ID only - no need to fetch name)
             user = get_current_user()
             username = user.name if user else "Unknown"
-            logging.info(f"Admin '{username}' deleted secret ID: {secret_id}")
+            logging.info("Admin '%s' deleted secret ID: %s", username, secret_id)
             return {"success": True, "message": "Secret deleted successfully"}, 200
         else:
             # Query only on failure to determine error type
@@ -571,7 +571,10 @@ class SecretBulkDeleteAPI(Resource):
         user = get_current_user()
         username = user.name if user else "Unknown"
         logging.info(
-            f"Admin '{username}' performed bulk secret deletion: {deleted_count} deleted, {failed_count} failed"
+            "Admin '%s' performed bulk secret deletion: %s deleted, %s failed",
+            username,
+            deleted_count,
+            failed_count,
         )
 
         all_succeeded = failed_count == 0
@@ -622,6 +625,6 @@ class ImagePortsAPI(Resource):
             ports = get_required_ports(docker, image, challenge_ports=None)
             return {"success": True, "ports": ports}
         except Exception as e:
-            logging.error(f"Error in image_ports endpoint: {type(e).__name__}: {e}")
-            logging.error(f"Traceback: {traceback.format_exc()}")
+            logging.error("Error in image_ports endpoint: %s: %s", type(e).__name__, e)
+            logging.error("Traceback: %s", traceback.format_exc())
             return {"success": False, "error": "Failed to retrieve image port information"}, 500
