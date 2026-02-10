@@ -3,15 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import random
 from typing import TYPE_CHECKING
 
-from ..constants import (
-    MAX_PORT_ASSIGNMENT_ATTEMPTS,
-    PORT_ASSIGNMENT_MAX,
-    PORT_ASSIGNMENT_MIN,
-)
-from ..functions.general import do_request, get_required_ports, get_secrets
+from ..functions.general import _find_available_port, do_request, get_required_ports, get_secrets
 
 # Type-only imports: keeps functions testable without SQLAlchemy initialization.
 # Runtime model access uses lazy imports inside individual functions.
@@ -32,27 +26,15 @@ def _assign_service_ports(needed_ports: list, blocked_ports: list) -> list:
     """
     assigned_ports = []
     for port_spec in needed_ports:
-        assigned_port = None
-        for _attempt in range(MAX_PORT_ASSIGNMENT_ATTEMPTS):
-            # random.choice used for port assignment, not cryptographic purposes
-            candidate_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))
-            if candidate_port not in blocked_ports:
-                assigned_port = candidate_port
-                port_dict = {
-                    "PublishedPort": assigned_port,
-                    "PublishMode": "ingress",
-                    "Protocol": "tcp",
-                    "TargetPort": int(port_spec.split("/")[0]),
-                    "Name": f"Exposed Port {port_spec}",
-                }
-                assigned_ports.append(port_dict)
-                break
-
-        if assigned_port is None:
-            raise RuntimeError(
-                f"Failed to find available port after {MAX_PORT_ASSIGNMENT_ATTEMPTS} attempts. "
-                f"Port range {PORT_ASSIGNMENT_MIN}-{PORT_ASSIGNMENT_MAX} may be exhausted."
-            )
+        port = _find_available_port(blocked_ports)
+        port_dict = {
+            "PublishedPort": port,
+            "PublishMode": "ingress",
+            "Protocol": "tcp",
+            "TargetPort": int(port_spec.split("/")[0]),
+            "Name": f"Exposed Port {port_spec}",
+        }
+        assigned_ports.append(port_dict)
     return assigned_ports
 
 

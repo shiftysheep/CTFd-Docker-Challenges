@@ -4,21 +4,9 @@ These tests verify the extraction logic for Docker container and service ports
 without requiring Docker API connectivity or CTFd runtime dependencies.
 """
 
-import importlib.util
-import sys
-from pathlib import Path
-
 import pytest
 
-# Import general module directly without triggering package __init__.py
-_general_path = Path(__file__).parent.parent / "docker_challenges" / "functions" / "general.py"
-_spec = importlib.util.spec_from_file_location("general", _general_path)
-_general_module = importlib.util.module_from_spec(_spec)
-sys.modules["general"] = _general_module
-_spec.loader.exec_module(_general_module)
-
-_extract_container_ports = _general_module._extract_container_ports
-_extract_service_ports = _general_module._extract_service_ports
+from docker_challenges.functions.general import _extract_container_ports, _extract_service_ports
 
 
 @pytest.mark.light
