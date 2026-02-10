@@ -27,11 +27,12 @@ pytest tests/               # Run test suite (manual testing via docker compose)
 - Python changes require `docker compose restart ctfd` + hard browser refresh (module caching)
 - Challenge views use global scope JavaScript (avoid ES6 modules - Alpine.js race conditions)
 - Always filter `DockerChallengeTracker` by both `challenge_id` AND `docker_image`
+- Docker secrets require both HTTPS (browser) and Docker TLS (Docker API) — see agent-docs/architecture/decisions.md
 
 **Resources**:
 
 - [Architecture patterns](agent-docs/architecture/patterns.md) - Design patterns and conventions
-- [Known limitations](agent-docs/architecture/limitations.md) - 17 documented issues and workarounds
+- [Known limitations](agent-docs/architecture/limitations.md) - Documented issues and workarounds
 - [Testing guide](agent-docs/development/testing.md) - Manual testing checklist and Docker Compose workflow
 - [Build process](agent-docs/development/building.md) - UV package manager, Hatchling, pre-commit hooks
 - [Deployment constraints](agent-docs/development/deployment.md) - Port range, Docker API access, plugin naming

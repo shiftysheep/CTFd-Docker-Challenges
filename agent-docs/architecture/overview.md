@@ -109,6 +109,8 @@ Both types implement: `create()`, `read()`, `update()`, `delete()`, `attempt()`,
 - `get_required_ports()`: Merge image ExposedPorts with challenge-configured ports
 - `get_unavailable_ports()`: Scan for port conflicts across all instances
 - `get_secrets()`: List Docker swarm secrets
+- `create_secret()`: Create Docker secret with base64-encoded data
+- `delete_secret()`: Delete Docker secret by ID
 
 ### 4. Port Allocation Strategy
 

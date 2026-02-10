@@ -51,3 +51,13 @@
 - WebSocket/Server-Sent Events for real-time status updates (replace polling entirely for better scalability)
 - TypeScript migration for type safety
 - Database indexes for performance (team_id+challenge_id, timestamp)
+
+## Resolved Issues
+
+- **Secret ID path traversal** — Regex validation on secret_id prevents directory traversal in DELETE endpoint (38dba8f)
+- **Secret transmission security** — Require both HTTPS and Docker TLS before transmitting secret values (b70019b)
+- **URL encoding in secret DELETE** — Added `encodeURIComponent` to prevent malformed URLs (40fd1ef)
+- **MD5 security warning** — Added `usedforsecurity=False` to container/service naming hashes (a982149)
+- **XSS `| safe` filter removal** — Removed 4 unsafe Jinja2 filters from admin_docker_status.html (e6f9c2b)
+- **`do_request` safety checks** — Changed return type to `Response | None` and guarded all callers (248bfaa)
+- **HTTP 403→404 fix** — Return correct status code for "challenge not found" (065e46d)

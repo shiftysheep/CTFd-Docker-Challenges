@@ -171,3 +171,26 @@ tracker = DockerChallengeTracker.query.filter_by(
 **Why**: CTFd supports both individual and team-based CTFs
 
 **Implementation**: `is_teams_mode()` determines whether to use `team_id` or `user_id`
+
+## Admin Resource Management Pattern
+
+**What**: CRUD + bulk delete + modal confirmation for admin-managed resources
+**Where**: `api/api.py` (SecretAPI, SecretBulkDeleteAPI), `templates/admin_docker_secrets.html`
+**Why**: Consistent admin interface for managing Docker resources (secrets, containers)
+
+**Structure**:
+
+- **GET**: List resources for dropdown/table population
+- **POST**: Create with validation (name format, uniqueness, secure transport)
+- **DELETE /<id>**: Single resource deletion with ID format validation
+- **DELETE /all**: Bulk deletion with per-item error tracking and counts
+
+**Security Layers**:
+
+1. `@admins_only` decorator on all endpoints
+2. Input validation (regex on IDs, name format restrictions)
+3. Secure transport check (TLS + HTTPS required for sensitive data)
+4. Audit logging (username + resource name, never values)
+5. TOCTOU awareness (Docker API as authoritative duplicate check)
+
+**Frontend**: Alpine.js modal with Bootstrap, bulk operations with confirmation dialog
