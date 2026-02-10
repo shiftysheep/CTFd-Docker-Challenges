@@ -295,6 +295,7 @@ def _track_container(
     db.session.commit()
 
 
+# GET method intentionally removed - container creation must use POST for CSRF protection
 @container_namespace.route("", methods=["POST"])
 class ContainerAPI(Resource):
     @authed_only

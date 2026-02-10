@@ -130,7 +130,7 @@ Implementation: `functions/containers.py:19-40`, `functions/services.py:18-29`
 - `/api/v1/container`: Create/revert containers (authenticated users)
 - `/api/v1/docker_status`: Get user's active containers
 - `/api/v1/nuke`: Admin kill containers (single or all)
-- `/api/v1/secret`: Fetch Docker secrets for services (admin)
+- `/api/v1/secret`: Docker secrets CRUD - list (GET), create (POST), delete by ID or bulk (DELETE) (admin)
 - `/api/v1/image_ports`: Fetch exposed ports from image metadata (admin)
 
 All implementations: `api/api.py`
@@ -179,10 +179,11 @@ All implementations: `api/api.py`
 
 ## Admin Interface
 
-**Two blueprints** (registered in `__init__.py`):
+**Three blueprints** (registered in `__init__.py`):
 
 1. `/admin/docker_config`: Configure Docker API connection, select repositories
 2. `/admin/docker_status`: View all active containers across teams/users
+3. `/admin/docker_secrets`: Create and manage Docker swarm secrets
 
 Menu items defined in `config.json`
 

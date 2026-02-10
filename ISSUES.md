@@ -44,7 +44,6 @@
 
 ## Feature Requests
 
-- Create secrets from CTFd into docker
 - Autocreate connection info based on service type
 - Dynamic port pointing (avoid hardcoded port ranges)
 - Individual secret permissions (per-secret permission control)
