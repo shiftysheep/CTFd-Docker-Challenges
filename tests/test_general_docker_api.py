@@ -26,15 +26,15 @@ from docker_challenges.functions.general import (
 
 
 @pytest.mark.medium
-def test_do_request_returns_empty_list_when_hostname_empty(mock_docker_config):
-    """do_request returns empty list when hostname is empty or None."""
+def test_do_request_returns_none_when_hostname_empty(mock_docker_config):
+    """do_request returns None when hostname is empty or None."""
     mock_docker_config.hostname = ""
     result = do_request(mock_docker_config, "/test")
-    assert result == []
+    assert result is None
 
     mock_docker_config.hostname = None
     result = do_request(mock_docker_config, "/test")
-    assert result == []
+    assert result is None
 
 
 @pytest.mark.medium
@@ -113,8 +113,8 @@ def test_do_request_uses_https_when_tls_enabled(mock_docker_config_tls):
 
 @pytest.mark.medium
 @responses.activate
-def test_do_request_returns_empty_list_on_connection_error(mock_docker_config):
-    """do_request returns empty list on ConnectionError."""
+def test_do_request_returns_none_on_connection_error(mock_docker_config):
+    """do_request returns None on ConnectionError."""
     responses.add(
         responses.GET,
         "http://localhost:2375/containers/json",
@@ -123,7 +123,7 @@ def test_do_request_returns_empty_list_on_connection_error(mock_docker_config):
 
     result = do_request(mock_docker_config, "/containers/json")
 
-    assert result == []
+    assert result is None
 
 
 # ============================================================================

@@ -30,6 +30,7 @@ def find_existing(docker: DockerConfig, name: str) -> str | None:
 
     if not r:
         logging.error("Failed to contact Docker!")
+        return None
 
     if len(r.json()) == 1:
         return r.json()[0]["Id"]
@@ -140,4 +141,6 @@ def delete_container(docker: DockerConfig, instance_id: str) -> bool:
         True if deletion succeeded, False otherwise.
     """
     r = do_request(docker, f"/containers/{instance_id}?force=true", method="DELETE")
+    if not r:
+        return False
     return r.ok

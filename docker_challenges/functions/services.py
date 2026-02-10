@@ -133,6 +133,9 @@ def create_service(
 
     # Create service and handle response
     r = do_request(docker, url="/services/create", method="POST", data=data)
+    if not r:
+        return None, None
+
     instance_id = r.json().get("ID")
     if not instance_id:
         logging.error("Unable to create service %s with image %s", service_name, image)
@@ -154,4 +157,6 @@ def delete_service(docker: DockerConfig, instance_id: str) -> bool:
         True if deletion succeeded, False otherwise.
     """
     r = do_request(docker, f"/services/{instance_id}", method="DELETE")
+    if not r:
+        return False
     return r.ok

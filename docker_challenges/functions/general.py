@@ -21,7 +21,7 @@ def do_request(
     headers: dict[str, str] | None = None,
     method: str = "GET",
     data: dict | str | None = None,
-) -> list | Response:
+) -> Response | None:
     """
     Execute HTTP request to Docker API with optional TLS support.
 
@@ -33,7 +33,7 @@ def do_request(
         data: Optional request body as dict or JSON string
 
     Returns:
-        Response object on success, empty list on connection failure.
+        Response object on success, None on connection failure.
         Handles TLS certificate validation when docker.tls_enabled is True.
     """
     tls = docker.tls_enabled
@@ -43,7 +43,7 @@ def do_request(
 
     # If no host set, request will fail
     if not host:
-        return []
+        return None
 
     if not headers:
         headers = {"Content-Type": "application/json"}
@@ -64,7 +64,7 @@ def do_request(
 
     logging.info("Request to Docker: %s %s", request_args["method"], request_args["url"])
 
-    resp = []
+    resp = None
     try:
         # Timeout is set in request_args above
         resp = requests.request(**request_args)
@@ -183,6 +183,9 @@ def get_secrets(docker: DockerConfig) -> list[dict[str, str]]:
         Returns empty list if Docker is not in swarm mode.
     """
     r = do_request(docker, "/secrets")
+    if not r:
+        return []
+
     response_data = r.json()
 
     # Handle error responses (e.g., when Docker is not in swarm mode)
