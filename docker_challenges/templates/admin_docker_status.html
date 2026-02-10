@@ -47,13 +47,9 @@
                     <tr id="tr_{{docker.instance_id}}" name="{{docker.id}}">
                         <td class="text-center" value="{{docker.id}}">{{docker.id}}</td>
                         {% if docker.team_id %}
-                        <td class="text-center" value="{{docker.team_id | safe }}">
-                            {{docker.team_id | safe }}
-                        </td>
+                        <td class="text-center" value="{{docker.team_id}}">{{docker.team_id}}</td>
                         {% else %}
-                        <td class="text-center" value="{{docker.team_id | safe }}">
-                            {{docker.user_id | safe }}
-                        </td>
+                        <td class="text-center" value="{{docker.team_id}}">{{docker.user_id}}</td>
                         {% endif %}
                         <td class="text-center" value="{{docker.docker_image}}">
                             {{docker.docker_image}}
