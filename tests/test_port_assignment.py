@@ -96,6 +96,9 @@ class TestAssignContainerPorts:
 
         assert result1 == result2
 
+        # Re-randomize to avoid leaking deterministic state to subsequent tests
+        random.seed()
+
 
 class TestAssignServicePorts:
     """Tests for _assign_service_ports function."""

@@ -2,6 +2,7 @@
 
 CTFd stub injection happens at module scope (before test collection)
 so that api/api.py can be imported in test_api_helpers.py.
+A session-scoped autouse fixture resets MagicMock stubs after all tests finish.
 """
 import sys
 from unittest.mock import MagicMock
@@ -84,6 +85,20 @@ if "flask" not in sys.modules:
     _flask.render_template = MagicMock()
     _flask.request = MagicMock()
     sys.modules["flask"] = _flask
+
+
+# ---------------------------------------------------------------------------
+# Session-Scoped Stub Cleanup
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _reset_ctfd_stubs():
+    """Reset all MagicMock stubs after the test session to prevent state leakage."""
+    yield
+    for mod in _stub_modules.values():
+        if isinstance(mod, MagicMock):
+            mod.reset_mock()
 
 
 # ---------------------------------------------------------------------------
