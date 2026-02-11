@@ -201,11 +201,14 @@ def get_secrets(docker: DockerConfig) -> list[dict[str, str]]:
 
     secrets_list = []
     for secret in response_data:
-        secret_dict = {
-            "ID": secret["ID"],
-            "Name": secret["Spec"]["Name"],
-        }
-        secrets_list.append(secret_dict)
+        try:
+            secret_dict = {
+                "ID": secret["ID"],
+                "Name": secret["Spec"]["Name"],
+            }
+            secrets_list.append(secret_dict)
+        except (KeyError, TypeError) as e:
+            logging.warning("Skipping malformed secret entry: %s", e)
     return secrets_list
 
 

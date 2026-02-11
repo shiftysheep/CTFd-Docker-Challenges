@@ -196,15 +196,15 @@ def _kill_single_container(
     container_id: str,
     docker_tracker: list[DockerChallengeTracker],
     challenges: dict[int, DockerChallenge | DockerServiceChallenge],
-) -> tuple[str, int] | None:
+) -> tuple[dict, int] | None:
     """Kill a specific container by ID."""
     tracker_entry = next((c for c in docker_tracker if c.instance_id == container_id), None)
     if not tracker_entry:
-        return "Container not found", 404
+        return {"success": False, "error": "Container not found"}, 404
 
     challenge = challenges.get(tracker_entry.challenge_id)
     if not challenge:
-        return "Challenge not found", 404
+        return {"success": False, "error": "Challenge not found"}, 404
 
     delete_docker(
         docker=docker_config, docker_type=challenge.type, instance_id=tracker_entry.instance_id
@@ -224,7 +224,7 @@ class KillContainerAPI(Resource):
         # Read from request body (JSON or form data)
         data = request.get_json() or request.form
         if not data:
-            return "No data provided", 400
+            return {"success": False, "error": "No data provided"}, 400
 
         container = data.get("container")
         full = data.get("all")
@@ -235,7 +235,7 @@ class KillContainerAPI(Resource):
         # Kill all containers if requested
         if _is_truthy(full):
             _kill_all_containers(docker_config, challenges)
-            return "Success", 200
+            return {"success": True}, 200
 
         # Kill single container
         if container and container != "null":
@@ -247,9 +247,9 @@ class KillContainerAPI(Resource):
                 )
                 if error:
                     return error
-                return "Success", 200
+                return {"success": True}, 200
 
-        return "Invalid request", 400
+        return {"success": False, "error": "Invalid request"}, 400
 
 
 def _parse_container_request() -> tuple[str | None, str | None]:
@@ -384,7 +384,7 @@ class DockerAPI(Resource):
             for i in images:
                 data.append({"name": i})
             return {"success": True, "data": data}
-        return {"success": False, "data": [{"name": "Error in Docker Config!"}]}, 400
+        return {"success": False, "error": "Failed to load Docker images"}, 500
 
 
 def _validate_secret_request(data: dict) -> tuple[str | None, str | None, str | None]:
@@ -598,6 +598,9 @@ class ImagePortsAPI(Resource):
         image = request.args.get("image")
         if not image:
             return {"success": False, "error": "Image parameter required"}, 400
+
+        if len(image) > 255:
+            return {"success": False, "error": "Image name too long"}, 400
 
         # Validate Docker image name format to prevent SSRF attacks
         # Pattern: [registry/][namespace/]name[:tag][@digest]

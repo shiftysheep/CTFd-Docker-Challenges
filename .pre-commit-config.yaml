@@ -45,8 +45,8 @@ repos:
       rev: v0.9.3
       hooks:
           - id: xenon
-            args: ['--max-absolute=B', '--max-modules=B', '--max-average=A']
-            files: ^docker_challenges/.*\.py$
+            args: ['--max-absolute=B', '--max-modules=B', '--max-average=A', 'docker_challenges/']
+            pass_filenames: false
 
     # Detect dead code
     - repo: https://github.com/jendrikseipp/vulture
