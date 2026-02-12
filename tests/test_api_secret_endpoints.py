@@ -89,6 +89,34 @@ class TestSecretAPIPost:
         assert "name" in result["error"].lower()
 
     @pytest.mark.medium
+    @patch("docker_challenges.api.api.request")
+    def test_post_rejects_non_string_name(self, mock_request):
+        """POST with non-string name returns 400."""
+        mock_request.get_json.return_value = {"name": 123, "data": "secret_value"}
+        mock_request.form = {}
+
+        api = SecretAPI()
+        result, status = api.post()
+
+        assert status == 400
+        assert result["success"] is False
+        assert result["error"] == "Secret name must be a string"
+
+    @pytest.mark.medium
+    @patch("docker_challenges.api.api.request")
+    def test_post_rejects_non_string_value(self, mock_request):
+        """POST with non-string value returns 400."""
+        mock_request.get_json.return_value = {"name": "my_secret", "data": 123}
+        mock_request.form = {}
+
+        api = SecretAPI()
+        result, status = api.post()
+
+        assert status == 400
+        assert result["success"] is False
+        assert result["error"] == "Secret value must be a string"
+
+    @pytest.mark.medium
     @patch("docker_challenges.api.api.get_current_user")
     @patch("docker_challenges.api.api.create_secret")
     @patch("docker_challenges.api.api.get_secrets")

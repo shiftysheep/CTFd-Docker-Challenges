@@ -117,6 +117,26 @@ class TestValidateSecretRequest:
         assert error == "Secret value is required"
 
     @pytest.mark.light
+    def test_name_must_be_string(self):
+        """Non-string name returns validation error instead of raising."""
+        data = {"name": 123, "data": "secret_value"}
+        name, value, error = _validate_secret_request(data)
+
+        assert name is None
+        assert value is None
+        assert error == "Secret name must be a string"
+
+    @pytest.mark.light
+    def test_value_must_be_string(self):
+        """Non-string value returns validation error instead of raising."""
+        data = {"name": "my_secret", "data": 123}
+        name, value, error = _validate_secret_request(data)
+
+        assert name is None
+        assert value is None
+        assert error == "Secret value must be a string"
+
+    @pytest.mark.light
     def test_name_with_spaces(self):
         """Secret name with spaces returns validation error."""
         data = {"name": "my secret", "data": "secret_value"}

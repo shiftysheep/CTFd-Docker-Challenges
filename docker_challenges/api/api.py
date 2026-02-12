@@ -402,8 +402,16 @@ def _validate_secret_request(data: dict) -> tuple[str | None, str | None, str | 
     if not data:
         return None, None, "No data provided"
 
-    secret_name = data.get("name", "").strip()
-    secret_value = data.get("data", "").strip()
+    raw_secret_name = data.get("name", "")
+    raw_secret_value = data.get("data", "")
+
+    if not isinstance(raw_secret_name, str):
+        return None, None, "Secret name must be a string"
+    if not isinstance(raw_secret_value, str):
+        return None, None, "Secret value must be a string"
+
+    secret_name = raw_secret_name.strip()
+    secret_value = raw_secret_value.strip()
 
     if not secret_name:
         return None, None, "Secret name is required"

@@ -204,11 +204,18 @@ export function fetchDockerSecrets(selectElementId, options = {}) {
  * @param {Function} onSuccess - Callback after successful secret creation (receives secret_id)
  */
 export function setupQuickSecretModal(addButtonId, modalId, formId, onSuccess) {
+    function resetSubmitButton() {
+        const submitBtn = document.getElementById('submitQuickSecret');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Create & Select';
+    }
+
     // Add Secret button handler
     document.getElementById(addButtonId).addEventListener('click', function () {
         const modal = new bootstrap.Modal(document.getElementById(modalId));
         document.getElementById(formId).reset();
         document.getElementById('quickSecretError').style.display = 'none';
+        resetSubmitButton();
         modal.show();
     });
 
@@ -238,6 +245,7 @@ export function setupQuickSecretModal(addButtonId, modalId, formId, onSuccess) {
             .then((result) => {
                 if (result.status === 201 && result.data.success) {
                     bootstrap.Modal.getInstance(document.getElementById(modalId)).hide();
+                    resetSubmitButton();
 
                     // Call success callback with new secret ID
                     if (onSuccess) {
@@ -254,15 +262,13 @@ export function setupQuickSecretModal(addButtonId, modalId, formId, onSuccess) {
                     document.getElementById('quickSecretError').textContent =
                         result.data.error || 'Failed';
                     document.getElementById('quickSecretError').style.display = 'block';
-                    btn.disabled = false;
-                    btn.innerHTML = 'Create & Select';
+                    resetSubmitButton();
                 }
             })
             .catch(() => {
                 document.getElementById('quickSecretError').textContent = 'Network error';
                 document.getElementById('quickSecretError').style.display = 'block';
-                btn.disabled = false;
-                btn.innerHTML = 'Create & Select';
+                resetSubmitButton();
             });
     });
 }
