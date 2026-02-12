@@ -10,12 +10,14 @@ from CTFd.utils.config import is_teams_mode
 from CTFd.utils.dates import unix_time
 from CTFd.utils.decorators import admins_only, authed_only
 from CTFd.utils.user import get_current_team, get_current_user
-from flask import abort, request
+from flask import request
 from flask_restx import Namespace, Resource
 
 from ..constants import CONTAINER_REVERT_TIMEOUT_SECONDS, CONTAINER_STALE_TIMEOUT_SECONDS
 from ..functions.containers import create_container, delete_container
 from ..functions.general import (
+    create_secret,
+    delete_secret,
     get_repositories,
     get_required_ports,
     get_secrets,
@@ -180,8 +182,8 @@ def _kill_all_containers(
     for tracker_entry in DockerChallengeTracker.query.yield_per(100):
         challenge = challenges.get(tracker_entry.challenge_id)
         if challenge:
-            logging.debug(f"type:{challenge.type}")
-            logging.debug(f"instance_id:{tracker_entry.instance_id}")
+            logging.debug("type:%s", challenge.type)
+            logging.debug("instance_id:%s", tracker_entry.instance_id)
             delete_docker(
                 docker=docker_config,
                 docker_type=challenge.type,
@@ -194,15 +196,15 @@ def _kill_single_container(
     container_id: str,
     docker_tracker: list[DockerChallengeTracker],
     challenges: dict[int, DockerChallenge | DockerServiceChallenge],
-) -> tuple[str, int] | None:
+) -> tuple[dict, int] | None:
     """Kill a specific container by ID."""
     tracker_entry = next((c for c in docker_tracker if c.instance_id == container_id), None)
     if not tracker_entry:
-        return "Container not found", 404
+        return {"success": False, "error": "Container not found"}, 404
 
     challenge = challenges.get(tracker_entry.challenge_id)
     if not challenge:
-        return "Challenge not found", 404
+        return {"success": False, "error": "Challenge not found"}, 404
 
     delete_docker(
         docker=docker_config, docker_type=challenge.type, instance_id=tracker_entry.instance_id
@@ -222,7 +224,7 @@ class KillContainerAPI(Resource):
         # Read from request body (JSON or form data)
         data = request.get_json() or request.form
         if not data:
-            return "No data provided", 400
+            return {"success": False, "error": "No data provided"}, 400
 
         container = data.get("container")
         full = data.get("all")
@@ -233,7 +235,7 @@ class KillContainerAPI(Resource):
         # Kill all containers if requested
         if _is_truthy(full):
             _kill_all_containers(docker_config, challenges)
-            return "Success", 200
+            return {"success": True}, 200
 
         # Kill single container
         if container and container != "null":
@@ -245,52 +247,90 @@ class KillContainerAPI(Resource):
                 )
                 if error:
                     return error
-                return "Success", 200
+                return {"success": True}, 200
 
-        return "Invalid request", 400
+        return {"success": False, "error": "Invalid request"}, 400
 
 
-@container_namespace.route("", methods=["POST", "GET"])
+def _parse_container_request() -> tuple[str | None, str | None]:
+    """
+    Parse container creation request data.
+
+    Returns:
+        Tuple of (challenge_id, error_message).
+        If parsing fails, returns (None, error_message).
+    """
+    data = request.get_json() or request.form
+    if not data:
+        return None, "No data provided"
+
+    challenge_id = data.get("id") or data.get("challenge_id")
+    if not challenge_id:
+        return None, "Challenge ID required"
+
+    return challenge_id, None
+
+
+def _track_container(
+    docker: DockerConfig,
+    challenge: DockerChallenge | DockerServiceChallenge,
+    session: Any,
+    is_teams: bool,
+    instance_id: str,
+    ports: list[str],
+) -> None:
+    """Record a new container in the challenge tracker."""
+    entry = DockerChallengeTracker(
+        team_id=session.id if is_teams else None,
+        user_id=session.id if not is_teams else None,
+        challenge_id=challenge.id,
+        docker_image=challenge.docker_image,
+        timestamp=unix_time(datetime.utcnow()),
+        revert_time=unix_time(datetime.utcnow()) + CONTAINER_REVERT_TIMEOUT_SECONDS,
+        instance_id=instance_id,
+        ports=",".join(ports),
+        host=str(docker.hostname).split(":")[0],
+    )
+    db.session.add(entry)
+    db.session.commit()
+
+
+# GET method intentionally removed - container creation must use POST for CSRF protection
+@container_namespace.route("", methods=["POST"])
 class ContainerAPI(Resource):
     @authed_only
-    # I wish this was Post... Issues with API/CSRF and whatnot. Open to a Issue solving this.
-    def get(self):
-        challenge_id = request.args.get("id")
-        if not challenge_id:
-            return abort(403)
+    def post(self):
+        """Create a Docker container for a challenge."""
+        challenge_id, error = _parse_container_request()
+        if error:
+            return {"success": False, "error": error}, 400
 
-        # Get Docker config and challenge
         docker = DockerConfig.query.filter_by(id=1).first()
         challenge = _get_challenge_by_id(challenge_id)
         if not challenge:
-            return abort(403)
+            return {"success": False, "error": "Challenge not found"}, 404
 
-        # Get current session (team or user)
         is_teams = is_teams_mode()
         session = get_current_team() if is_teams else get_current_user()
 
-        # Handle container creation workflow
         result = _handle_container_creation(docker, challenge, session, is_teams)
         if not result:
-            return abort(403) if result is None else abort(500)
+            error_msg = (
+                "Container creation not allowed" if result is None else "Container creation failed"
+            )
+            return {"success": False, "error": error_msg}, 403 if result is None else 500
 
         instance_id, ports = result
+        _track_container(docker, challenge, session, is_teams, instance_id, ports)
 
-        # Track the new container
-        entry = DockerChallengeTracker(
-            team_id=session.id if is_teams else None,
-            user_id=session.id if not is_teams else None,
-            challenge_id=challenge_id,
-            docker_image=challenge.docker_image,
-            timestamp=unix_time(datetime.utcnow()),
-            revert_time=unix_time(datetime.utcnow()) + CONTAINER_REVERT_TIMEOUT_SECONDS,
-            instance_id=instance_id,
-            ports=",".join(ports),
-            host=str(docker.hostname).split(":")[0],
-        )
-        db.session.add(entry)
-        db.session.commit()
-        return
+        return {
+            "success": True,
+            "data": {
+                "instance_id": instance_id,
+                "ports": ports,
+                "host": str(docker.hostname).split(":")[0],
+            },
+        }, 201
 
 
 @active_docker_namespace.route("", methods=["POST", "GET"])
@@ -344,14 +384,74 @@ class DockerAPI(Resource):
             for i in images:
                 data.append({"name": i})
             return {"success": True, "data": data}
-        return {"success": False, "data": [{"name": "Error in Docker Config!"}]}, 400
+        return {"success": False, "error": "Failed to load Docker images"}, 500
 
 
-@secret_namespace.route("", methods=["POST", "GET"])
+def _validate_secret_request(data: dict) -> tuple[str | None, str | None, str | None]:
+    """
+    Validate secret creation request data.
+
+    Args:
+        data: Request data containing 'name' and 'data' fields
+
+    Returns:
+        Tuple of (secret_name, secret_value, error_message).
+        If validation fails, returns (None, None, error_message).
+        If validation succeeds, returns (secret_name, secret_value, None).
+    """
+    if not data:
+        return None, None, "No data provided"
+
+    raw_secret_name = data.get("name", "")
+    raw_secret_value = data.get("data", "")
+
+    if not isinstance(raw_secret_name, str):
+        return None, None, "Secret name must be a string"
+    if not isinstance(raw_secret_value, str):
+        return None, None, "Secret value must be a string"
+
+    secret_name = raw_secret_name.strip()
+    secret_value = raw_secret_value.strip()
+
+    if not secret_name:
+        return None, None, "Secret name is required"
+    if not secret_value:
+        return None, None, "Secret value is required"
+    if not re.match(r"^[a-zA-Z0-9._-]+$", secret_name):
+        return (
+            None,
+            None,
+            "Secret name must contain only letters, numbers, dots, underscores, and hyphens",
+        )
+
+    return secret_name, secret_value, None
+
+
+def _check_secret_uniqueness(docker: DockerConfig, secret_name: str) -> str | None:
+    """
+    Check if secret name already exists.
+
+    Args:
+        docker: DockerConfig instance
+        secret_name: Secret name to check
+
+    Returns:
+        Error message if secret exists, None otherwise.
+    """
+    existing_secrets = get_secrets(docker)
+    if any(s["Name"] == secret_name for s in existing_secrets):
+        return f"Secret name '{secret_name}' already in use"
+    return None
+
+
+@secret_namespace.route("", methods=["GET", "POST"])
+@secret_namespace.route("/<secret_id>", methods=["DELETE"])
 class SecretAPI(Resource):
     """
-    This is for creating Docker Challenges. The purpose of this API is to populate the Docker Secret Select form
-    object in the Challenge Creation Screen.
+    API for managing Docker secrets.
+    GET: Retrieve list of secrets for challenge forms
+    POST: Create new secret
+    DELETE: Delete secret by ID
     """
 
     @admins_only
@@ -364,6 +464,134 @@ class SecretAPI(Resource):
         for i in secrets:
             data.append({"name": i["Name"], "id": i["ID"]})
         return {"success": True, "data": data}
+
+    @admins_only
+    def post(self):
+        """Create a new Docker secret."""
+        # Validate request data using helper function
+        data = request.get_json() or request.form
+        secret_name, secret_value, error = _validate_secret_request(data)
+        if error:
+            return {"success": False, "error": error}, 400
+
+        # Get Docker config
+        docker = DockerConfig.query.filter_by(id=1).first()
+        if not docker:
+            return {"success": False, "error": "Docker configuration not found"}, 500
+
+        # Validate secure transport (TLS/HTTPS required for secret transmission)
+        if not docker.tls_enabled or not request.is_secure:
+            return {
+                "success": False,
+                "error": "Secure transport required. Both HTTPS (browser) and Docker TLS must be enabled to transmit secrets safely.",
+            }, 400
+
+        # Check uniqueness using helper function
+        uniqueness_error = _check_secret_uniqueness(docker, secret_name)
+        if uniqueness_error:
+            return {"success": False, "error": uniqueness_error}, 409
+
+        # Create secret
+        secret_id, success = create_secret(docker, secret_name, secret_value)
+        if not success:
+            return {"success": False, "error": "Failed to create secret. Check Docker logs."}, 500
+
+        # Audit logging (log name only, NOT value)
+        user = get_current_user()
+        username = user.name if user else "Unknown"
+        logging.info("Admin '%s' created secret '%s' (ID: %s)", username, secret_name, secret_id)
+
+        return {"success": True, "data": {"id": secret_id, "name": secret_name}}, 201
+
+    @admins_only
+    def delete(self, secret_id):
+        """Delete a Docker secret by ID."""
+        if not secret_id:
+            return {"success": False, "error": "Secret ID is required"}, 400
+
+        if not re.match(r"^[a-zA-Z0-9_-]+$", secret_id):
+            return {"success": False, "error": "Invalid secret ID format"}, 400
+
+        docker = DockerConfig.query.filter_by(id=1).first()
+        if not docker:
+            return {"success": False, "error": "Docker configuration not found"}, 500
+
+        # Delete first - Docker API is source of truth (fixes TOCTOU race condition)
+        success = delete_secret(docker, secret_id)
+
+        if success:
+            # Audit log (ID only - no need to fetch name)
+            user = get_current_user()
+            username = user.name if user else "Unknown"
+            logging.info("Admin '%s' deleted secret ID: %s", username, secret_id)
+            return {"success": True, "message": "Secret deleted successfully"}, 200
+        else:
+            # Query only on failure to determine error type
+            current_secrets = get_secrets(docker)
+            secret_name = next((s["Name"] for s in current_secrets if s["ID"] == secret_id), None)
+
+            if secret_name:
+                return {
+                    "success": False,
+                    "error": f"Cannot delete secret '{secret_name}' - in use",
+                }, 409
+            else:
+                return {"success": False, "error": "Secret not found"}, 404
+
+
+@secret_namespace.route("/all", methods=["DELETE"])
+class SecretBulkDeleteAPI(Resource):
+    """Bulk delete all Docker secrets."""
+
+    @admins_only
+    def delete(self):
+        docker = DockerConfig.query.filter_by(id=1).first()
+        if not docker:
+            return {"success": False, "error": "Docker configuration not found"}, 500
+
+        # Get all secrets
+        all_secrets = get_secrets(docker)
+        if not all_secrets:
+            return {
+                "success": True,
+                "deleted": 0,
+                "failed": 0,
+                "message": "No secrets to delete",
+            }, 200
+
+        # Attempt to delete each secret
+        deleted_count = 0
+        failed_count = 0
+        errors = []
+
+        for secret in all_secrets:
+            secret_id = secret["ID"]
+            secret_name = secret["Name"]
+
+            success = delete_secret(docker, secret_id)
+            if success:
+                deleted_count += 1
+            else:
+                failed_count += 1
+                errors.append(f"Failed to delete '{secret_name}' (likely in use)")
+
+        # Audit logging
+        user = get_current_user()
+        username = user.name if user else "Unknown"
+        logging.info(
+            "Admin '%s' performed bulk secret deletion: %s deleted, %s failed",
+            username,
+            deleted_count,
+            failed_count,
+        )
+
+        all_succeeded = failed_count == 0
+        return {
+            "success": all_succeeded,
+            "deleted": deleted_count,
+            "failed": failed_count,
+            "errors": errors if errors else [],
+        }, 200
 
 
 @image_ports_namespace.route("", methods=["GET"])
@@ -378,6 +606,9 @@ class ImagePortsAPI(Resource):
         image = request.args.get("image")
         if not image:
             return {"success": False, "error": "Image parameter required"}, 400
+
+        if len(image) > 255:
+            return {"success": False, "error": "Image name too long"}, 400
 
         # Validate Docker image name format to prevent SSRF attacks
         # Pattern: [registry/][namespace/]name[:tag][@digest]
@@ -405,6 +636,6 @@ class ImagePortsAPI(Resource):
             ports = get_required_ports(docker, image, challenge_ports=None)
             return {"success": True, "ports": ports}
         except Exception as e:
-            logging.error(f"Error in image_ports endpoint: {type(e).__name__}: {e}")
-            logging.error(f"Traceback: {traceback.format_exc()}")
+            logging.error("Error in image_ports endpoint: %s: %s", type(e).__name__, e)
+            logging.error("Traceback: %s", traceback.format_exc())
             return {"success": False, "error": "Failed to retrieve image port information"}, 500

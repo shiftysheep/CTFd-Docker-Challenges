@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
-import random
+from typing import TYPE_CHECKING
 
-from ..constants import (
-    MAX_PORT_ASSIGNMENT_ATTEMPTS,
-    PORT_ASSIGNMENT_MAX,
-    PORT_ASSIGNMENT_MIN,
-)
-from ..functions.general import do_request, get_required_ports, get_secrets
-from ..models.models import DockerConfig, DockerServiceChallenge
+from ..functions.general import _find_available_port, do_request, get_required_ports, get_secrets
+
+# Type-only imports: keeps functions testable without SQLAlchemy initialization.
+# Runtime model access uses lazy imports inside individual functions.
+if TYPE_CHECKING:
+    from ..models.models import DockerConfig, DockerServiceChallenge
 
 
 def _assign_service_ports(needed_ports: list, blocked_ports: list) -> list:
@@ -25,27 +26,15 @@ def _assign_service_ports(needed_ports: list, blocked_ports: list) -> list:
     """
     assigned_ports = []
     for port_spec in needed_ports:
-        assigned_port = None
-        for _attempt in range(MAX_PORT_ASSIGNMENT_ATTEMPTS):
-            # random.choice used for port assignment, not cryptographic purposes
-            candidate_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))
-            if candidate_port not in blocked_ports:
-                assigned_port = candidate_port
-                port_dict = {
-                    "PublishedPort": assigned_port,
-                    "PublishMode": "ingress",
-                    "Protocol": "tcp",
-                    "TargetPort": int(port_spec.split("/")[0]),
-                    "Name": f"Exposed Port {port_spec}",
-                }
-                assigned_ports.append(port_dict)
-                break
-
-        if assigned_port is None:
-            raise RuntimeError(
-                f"Failed to find available port after {MAX_PORT_ASSIGNMENT_ATTEMPTS} attempts. "
-                f"Port range {PORT_ASSIGNMENT_MIN}-{PORT_ASSIGNMENT_MAX} may be exhausted."
-            )
+        port = _find_available_port(blocked_ports)
+        port_dict = {
+            "PublishedPort": port,
+            "PublishMode": "ingress",
+            "Protocol": "tcp",
+            "TargetPort": int(port_spec.split("/")[0]),
+            "Name": f"Exposed Port {port_spec}",
+        }
+        assigned_ports.append(port_dict)
     return assigned_ports
 
 
@@ -83,7 +72,9 @@ def _build_secrets_list(challenge: DockerServiceChallenge, docker: DockerConfig)
     return secrets_list
 
 
-def create_service(docker: DockerConfig, challenge_id: int, image: str, team: str, portbl: list):
+def create_service(
+    docker: DockerConfig, challenge_id: int, image: str, team: str, portbl: list
+) -> tuple[str | None, list[dict] | None]:
     """
     Create a Docker Swarm service for a challenge instance.
 
@@ -98,13 +89,15 @@ def create_service(docker: DockerConfig, challenge_id: int, image: str, team: st
         Tuple of (instance_id, service_data) or (None, None) on failure
     """
     # Get challenge configuration
-    challenge = DockerServiceChallenge.query.filter_by(id=challenge_id).first()
+    from ..models.models import DockerServiceChallenge as _ServiceChallenge
+
+    challenge = _ServiceChallenge.query.filter_by(id=challenge_id).first()
     exposed_ports = challenge.exposed_ports if challenge else None
     needed_ports = get_required_ports(docker, image, exposed_ports)
 
     # Generate unique service name
     # MD5 used for service naming only, not security
-    team_hash = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
+    team_hash = hashlib.md5(team.encode("utf-8"), usedforsecurity=False).hexdigest()[:10]
     service_name = f"svc_{image.split(':')[1]}{team_hash}"
 
     # Assign available ports and build secrets list
@@ -122,15 +115,30 @@ def create_service(docker: DockerConfig, challenge_id: int, image: str, team: st
 
     # Create service and handle response
     r = do_request(docker, url="/services/create", method="POST", data=data)
+    if not r:
+        return None, None
+
     instance_id = r.json().get("ID")
     if not instance_id:
-        logging.error(f"Unable to create service {service_name} with image {image}")
-        logging.error(f"Error: {r.json()}")
+        logging.error("Unable to create service %s with image %s", service_name, image)
+        logging.error("Error: %s", r.json())
         return None, None
 
     return instance_id, data
 
 
 def delete_service(docker: DockerConfig, instance_id: str) -> bool:
+    """
+    Delete a Docker Swarm service by ID.
+
+    Args:
+        docker: DockerConfig instance with API connection details
+        instance_id: Docker service ID to delete
+
+    Returns:
+        True if deletion succeeded, False otherwise.
+    """
     r = do_request(docker, f"/services/{instance_id}", method="DELETE")
+    if not r:
+        return False
     return r.ok

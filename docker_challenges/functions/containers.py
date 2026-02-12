@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
-import random
+from typing import TYPE_CHECKING
 
-from ..constants import (
-    MAX_PORT_ASSIGNMENT_ATTEMPTS,
-    PORT_ASSIGNMENT_MAX,
-    PORT_ASSIGNMENT_MIN,
-)
-from ..functions.general import do_request, get_required_ports
-from ..models.models import DockerConfig
+from ..functions.general import _find_available_port, do_request, get_required_ports
+
+# Type-only imports: keeps functions testable without SQLAlchemy initialization.
+# Runtime model access uses lazy imports inside individual functions.
+if TYPE_CHECKING:
+    from ..models.models import DockerConfig
 
 
 def find_existing(docker: DockerConfig, name: str) -> str | None:
@@ -23,6 +24,7 @@ def find_existing(docker: DockerConfig, name: str) -> str | None:
 
     if not r:
         logging.error("Failed to contact Docker!")
+        return None
 
     if len(r.json()) == 1:
         return r.json()[0]["Id"]
@@ -44,20 +46,8 @@ def _assign_container_ports(needed_ports: list[str], blocked_ports: list[int]) -
     assigned_ports = {}
 
     for _i in needed_ports:
-        assigned_port = None
-        for _attempt in range(MAX_PORT_ASSIGNMENT_ATTEMPTS):
-            # random.choice used for port assignment, not cryptographic purposes
-            candidate_port = random.choice(range(PORT_ASSIGNMENT_MIN, PORT_ASSIGNMENT_MAX))
-            if candidate_port not in blocked_ports:
-                assigned_port = candidate_port
-                assigned_ports[f"{assigned_port}/tcp"] = {}
-                break
-
-        if assigned_port is None:
-            raise RuntimeError(
-                f"Failed to find available port after {MAX_PORT_ASSIGNMENT_ATTEMPTS} attempts. "
-                f"Port range {PORT_ASSIGNMENT_MIN}-{PORT_ASSIGNMENT_MAX} may be exhausted."
-            )
+        port = _find_available_port(blocked_ports)
+        assigned_ports[f"{port}/tcp"] = {}
 
     return assigned_ports
 
@@ -69,9 +59,22 @@ def create_container(
     portbl: list[int],
     exposed_ports: str | None = None,
 ) -> tuple[str, str]:
+    """
+    Create a standalone Docker container for a challenge instance.
+
+    Args:
+        docker: DockerConfig instance with API connection details
+        image: Docker image name (e.g., "registry/image:tag")
+        team: Team/user identifier for unique container naming
+        portbl: List of blocked ports to avoid conflicts
+        exposed_ports: Optional comma-separated port specs (e.g., "80/tcp,443/tcp")
+
+    Returns:
+        Tuple of (container_id, container_name) on success.
+    """
     needed_ports = get_required_ports(docker, image, exposed_ports)
     # MD5 used for container naming only, not security
-    team = hashlib.md5(team.encode("utf-8")).hexdigest()[:10]
+    team = hashlib.md5(team.encode("utf-8"), usedforsecurity=False).hexdigest()[:10]
     container_name = "{}_{}".format(
         image.replace(":", "_").replace("/", "_").replace(".", "_"),
         team,
@@ -109,5 +112,17 @@ def create_container(
 
 
 def delete_container(docker: DockerConfig, instance_id: str) -> bool:
+    """
+    Delete a Docker container by ID with force flag.
+
+    Args:
+        docker: DockerConfig instance with API connection details
+        instance_id: Docker container ID to delete
+
+    Returns:
+        True if deletion succeeded, False otherwise.
+    """
     r = do_request(docker, f"/containers/{instance_id}?force=true", method="DELETE")
+    if not r:
+        return False
     return r.ok

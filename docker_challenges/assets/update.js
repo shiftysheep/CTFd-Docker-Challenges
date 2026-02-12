@@ -6,11 +6,13 @@ import {
 } from './shared/portManagement.js';
 
 // Wait for CTFd to be available before running plugin code
-function waitForCTFd(callback) {
+function waitForCTFd(callback, maxAttempts = 50) {
     if (window.CTFd && window.CTFd.plugin) {
         callback();
+    } else if (maxAttempts <= 0) {
+        console.error('CTFd failed to load after maximum attempts');
     } else {
-        setTimeout(() => waitForCTFd(callback), 100);
+        setTimeout(() => waitForCTFd(callback, maxAttempts - 1), 100);
     }
 }
 

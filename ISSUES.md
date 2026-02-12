@@ -2,6 +2,29 @@
 
 ## Active Bugs
 
+- **Challenge modal becomes unclickable after first close**
+    - Location: docker_challenges/assets/view.js (lines 8-16, 45-209)
+    - Issue: After viewing a challenge modal and closing it (via close button or clicking outside), subsequent challenge clicks do not open modals until page refresh
+    - Reproduction:
+        1. Navigate to /challenges
+        2. Click any challenge to open modal
+        3. Launch Docker instance (optional)
+        4. Close modal (either close button or click outside)
+        5. Attempt to click another challenge - modal does not appear
+        6. Refresh page - clicking works again
+    - Impact: Critical UX blocker - users cannot navigate between challenges without refresh
+    - Workaround: Refresh page after each challenge view
+    - Root Cause: **Identified - Two related issues:**
+        1. **Timer/Memory Leak**: Alpine.js `containerStatus()` component creates timers (`pollTimeoutId` at line 74, `countdownInterval` at line 165) that are never cleared when modal closes. No cleanup lifecycle hook exists.
+        2. **Global State Pollution**: Plugin sets `CTFd._internal.challenge.render = null` (line 14), breaking CTFd's ability to render subsequent challenges after first modal close.
+        3. **Missing Modal Lifecycle**: No Bootstrap modal event listeners (`hide.bs.modal`) to trigger cleanup when modal closes.
+    - Fix Strategy:
+        1. Add Alpine.js cleanup lifecycle (`destroy()` method or `$watch` for modal state)
+        2. Clear timers (`clearTimeout(pollTimeoutId)`, `clearTimeout(countdownInterval)`)
+        3. Add Bootstrap modal `hide.bs.modal` event listener for cleanup
+        4. Restore or properly manage `CTFd._internal.challenge.render` function
+    - Effort: 2-3 hours (requires testing modal lifecycle with CTFd core)
+
 - **Docker tag aliasing behavior**
     - Location: docker_challenges/functions/general.py (get_repositories)
     - Issue: Plugin reads first tag in image RepoTags array
@@ -21,7 +44,6 @@
 
 ## Feature Requests
 
-- Create secrets from CTFd into docker
 - Autocreate connection info based on service type
 - Dynamic port pointing (avoid hardcoded port ranges)
 - Individual secret permissions (per-secret permission control)
@@ -29,3 +51,13 @@
 - WebSocket/Server-Sent Events for real-time status updates (replace polling entirely for better scalability)
 - TypeScript migration for type safety
 - Database indexes for performance (team_id+challenge_id, timestamp)
+
+## Resolved Issues
+
+- **Secret ID path traversal** — Regex validation on secret_id prevents directory traversal in DELETE endpoint (38dba8f)
+- **Secret transmission security** — Require both HTTPS and Docker TLS before transmitting secret values (b70019b)
+- **URL encoding in secret DELETE** — Added `encodeURIComponent` to prevent malformed URLs (40fd1ef)
+- **MD5 security warning** — Added `usedforsecurity=False` to container/service naming hashes (a982149)
+- **XSS `| safe` filter removal** — Removed 4 unsafe Jinja2 filters from admin_docker_status.html (e6f9c2b)
+- **`do_request` safety checks** — Changed return type to `Response | None` and guarded all callers (248bfaa)
+- **HTTP 403→404 fix** — Return correct status code for "challenge not found" (065e46d)

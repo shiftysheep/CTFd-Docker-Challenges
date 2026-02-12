@@ -170,12 +170,28 @@ function containerStatus(container, challengeId) {
 
         async startContainer() {
             try {
-                await fetch('/api/v1/container?id=' + challengeId);
+                const response = await fetch('/api/v1/container', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'CSRF-Token': init.csrfNonce,
+                    },
+                    body: JSON.stringify({ challenge_id: challengeId }),
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'Container creation failed');
+                }
+
                 await this.pollStatus();
             } catch (error) {
                 ezal({
-                    title: 'Attention!',
-                    body: 'You can only revert a container once per 5 minutes! Please be patient.',
+                    title: 'Container Error',
+                    body:
+                        error.message ||
+                        'You can only revert a container once per 5 minutes! Please be patient.',
                     button: 'Got it!',
                 });
                 await this.pollStatus();

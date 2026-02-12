@@ -31,7 +31,7 @@ __all__ = [
     "kill_container",
     "secret_namespace",
 ]
-from .functions.general import get_docker_info, get_repositories
+from .functions.general import get_docker_info, get_repositories, get_secrets, is_swarm_mode
 from .models.container import DockerChallengeType
 from .models.models import DockerChallengeTracker, DockerConfig, DockerConfigForm
 from .models.service import DockerServiceChallengeType
@@ -48,9 +48,9 @@ def __handle_file_upload(file_key: str, b_obj: DockerConfig, attr_name: str):
         if old_cert_path and Path(old_cert_path).exists():
             try:
                 os.unlink(old_cert_path)
-                logging.debug(f"Cleaned up old certificate file: {old_cert_path}")
+                logging.debug("Cleaned up old certificate file: %s", old_cert_path)
             except OSError as e:
-                logging.warning(f"Failed to delete old certificate file {old_cert_path}: {e}")
+                logging.warning("Failed to delete old certificate file %s: %s", old_cert_path, e)
 
         file_content = request.files[file_key].stream.read()
         if len(file_content) != 0:
@@ -123,9 +123,9 @@ def define_docker_admin(app):
                 if cert_path and Path(cert_path).exists():
                     try:
                         os.unlink(cert_path)
-                        logging.debug(f"Cleaned up {cert_attr} file: {cert_path}")
+                        logging.debug("Cleaned up %s file: %s", cert_attr, cert_path)
                     except OSError as e:
-                        logging.warning(f"Failed to delete {cert_attr} file {cert_path}: {e}")
+                        logging.warning("Failed to delete %s file %s: %s", cert_attr, cert_path, e)
 
             config.ca_cert = None
             config.client_cert = None
@@ -230,6 +230,55 @@ def define_docker_status(app):
     app.register_blueprint(admin_docker_status)
 
 
+def define_docker_secrets(app):
+    """Admin blueprint for managing Docker secrets."""
+    admin_docker_secrets = Blueprint(
+        "admin_docker_secrets",
+        __name__,
+        template_folder="templates",
+        static_folder="assets",
+    )
+
+    @admin_docker_secrets.route("/admin/docker_secrets", methods=["GET"])
+    @admins_only
+    def docker_secrets():
+        """Admin page for viewing and managing Docker secrets."""
+        try:
+            docker = DockerConfig.query.filter_by(id=1).first()
+            if not docker:
+                logging.error("Docker configuration not found")
+                return render_template(
+                    "admin_docker_secrets.html",
+                    secrets=[],
+                    swarm_mode=False,
+                    errors=["Docker not configured"],
+                    docker=None,
+                )
+
+            swarm_mode = is_swarm_mode(docker)
+            secrets = get_secrets(docker)
+            secrets_sorted = sorted(secrets, key=lambda s: s["Name"])
+
+        except Exception as err:
+            logging.error("Error loading secrets: %s", err)
+            return render_template(
+                "admin_docker_secrets.html",
+                secrets=[],
+                swarm_mode=False,
+                errors=[str(err)],
+                docker=None,
+            )
+
+        return render_template(
+            "admin_docker_secrets.html",
+            secrets=secrets_sorted,
+            swarm_mode=swarm_mode,
+            docker=docker,
+        )
+
+    app.register_blueprint(admin_docker_secrets)
+
+
 def load(app):
     app.db.create_all()
 
@@ -240,6 +289,7 @@ def load(app):
 
     define_docker_admin(app)
     define_docker_status(app)
+    define_docker_secrets(app)
 
     CTFd_API_v1.add_namespace(docker_namespace, "/docker")
     CTFd_API_v1.add_namespace(container_namespace, "/container")
