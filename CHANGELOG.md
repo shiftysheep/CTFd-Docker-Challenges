@@ -19,6 +19,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [unreleased]: https://github.com/shiftysheep/CTFd-Docker-Challenges/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/shiftysheep/CTFd-Docker-Challenges/releases/tag/v1.0.0
 
+## v3.1.0 (2026-02-12)
+
+### Feat
+
+- **secrets**: add Docker secrets CRUD management and container POST API
+
+### Fix
+
+- harden secret request validation and modal submit reset
+- **security**: address pre-merge review findings
+- **api**: return 404 instead of 403 for challenge not found
+- **security**: change do_request to return None on failure and guard all callers
+- **security**: remove XSS-vulnerable safe filters from admin_docker_status.html
+- **security**: add encodeURIComponent to secret DELETE URL
+- **logging**: convert f-string logging to lazy evaluation
+- **security**: add secret_id regex validation in DELETE endpoint
+- **secrets**: return success:false on bulk delete partial failure
+- **security**: add usedforsecurity=False to MD5 hash calls
+- **secrets**: require both HTTPS and Docker TLS for secret transmission
+- **tracker**: add challenge_id filter and document lazy import rationale
+
+### Refactor
+
+- add waitForCTFd timeout and extract shared port-finding logic
+- add TYPE_CHECKING guards, test infrastructure, and model updates
+
 ## v3.0.0 (2025-12-10)
 
 ### Feat
