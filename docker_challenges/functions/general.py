@@ -4,6 +4,7 @@ import base64
 import json
 import logging
 import random
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 import requests
@@ -20,6 +21,19 @@ from ..constants import (
 # Runtime model access uses lazy imports inside individual functions.
 if TYPE_CHECKING:
     from ..models.models import DockerChallengeTracker, DockerConfig
+
+
+def _validate_tls_files(docker: DockerConfig) -> bool:
+    """Check that all TLS certificate files exist on disk."""
+    for label, cert_path in [
+        ("ca_cert", docker.ca_cert),
+        ("client_cert", docker.client_cert),
+        ("client_key", docker.client_key),
+    ]:
+        if not cert_path or not Path(cert_path).exists():
+            logging.error("TLS enabled but %s file missing: %s", label, cert_path)
+            return False
+    return True
 
 
 def do_request(
@@ -66,6 +80,8 @@ def do_request(
         request_args["data"] = data
 
     if tls:
+        if not _validate_tls_files(docker):
+            return None
         request_args["cert"] = (docker.client_cert, docker.client_key)
         request_args["verify"] = docker.ca_cert
 

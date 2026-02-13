@@ -39,10 +39,14 @@ from .models.service import DockerServiceChallengeType
 
 def __handle_file_upload(file_key: str, b_obj: DockerConfig, attr_name: str):
     if file_key not in request.files:
-        setattr(b_obj, attr_name, "")
         return
 
     try:
+        file_content = request.files[file_key].stream.read()
+        if len(file_content) == 0:
+            # No new file uploaded — preserve existing certificate
+            return
+
         # Clean up old certificate file if it exists
         old_cert_path = getattr(b_obj, attr_name, None)
         if old_cert_path and Path(old_cert_path).exists():
@@ -52,24 +56,20 @@ def __handle_file_upload(file_key: str, b_obj: DockerConfig, attr_name: str):
             except OSError as e:
                 logging.warning("Failed to delete old certificate file %s: %s", old_cert_path, e)
 
-        file_content = request.files[file_key].stream.read()
-        if len(file_content) != 0:
-            # Use secure temp directory with restrictive permissions and .pem suffix
-            with tempfile.NamedTemporaryFile(
-                mode="wb",
-                suffix=".pem",
-                delete=False,
-                prefix=f"docker_{attr_name}_",
-            ) as tmp_file:
-                tmp_file.write(file_content)
-                tmp_file.flush()
-                # Set restrictive permissions (owner read/write only)
-                os.chmod(tmp_file.name, 0o600)
-                setattr(b_obj, attr_name, tmp_file.name)
-            return
+        # Use secure temp directory with restrictive permissions and .pem suffix
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            suffix=".pem",
+            delete=False,
+            prefix=f"docker_{attr_name}_",
+        ) as tmp_file:
+            tmp_file.write(file_content)
+            tmp_file.flush()
+            # Set restrictive permissions (owner read/write only)
+            os.chmod(tmp_file.name, 0o600)
+            setattr(b_obj, attr_name, tmp_file.name)
     except Exception as err:
         logging.error(err)
-        setattr(b_obj, attr_name, "")
 
 
 def define_docker_admin(app):
@@ -88,6 +88,9 @@ def define_docker_admin(app):
         for key in ["ca_cert", "client_cert", "client_key"]:
             file_name = getattr(docker, key)
             if file_name and not Path(file_name).exists():
+                logging.warning(
+                    "TLS certificate file missing: %s=%s. Disabling TLS.", key, file_name
+                )
                 docker.tls_enabled = False
                 return
 
