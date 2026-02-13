@@ -120,14 +120,20 @@ def mock_docker_config():
 
 
 @pytest.fixture
-def mock_docker_config_tls():
-    """Mock DockerConfig with TLS enabled."""
+def mock_docker_config_tls(tmp_path):
+    """Mock DockerConfig with TLS enabled and real temp cert files."""
+    ca = tmp_path / "ca.pem"
+    cert = tmp_path / "cert.pem"
+    key = tmp_path / "key.pem"
+    for f in (ca, cert, key):
+        f.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
+
     config = MagicMock()
     config.hostname = "localhost:2376"
     config.tls_enabled = True
-    config.ca_cert = "/path/to/ca.pem"
-    config.client_cert = "/path/to/cert.pem"
-    config.client_key = "/path/to/key.pem"
+    config.ca_cert = str(ca)
+    config.client_cert = str(cert)
+    config.client_key = str(key)
     config.repositories = None
     return config
 
