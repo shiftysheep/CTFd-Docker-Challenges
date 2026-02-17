@@ -11,6 +11,8 @@
  * Similar to portManagement.js pattern
  */
 
+import { showModal, hideModal, bindDismissButtons } from './modalUtils.js';
+
 /**
  * Fetch Docker images and populate dropdown with auto-port population.
  *
@@ -215,11 +217,12 @@ export function setupQuickSecretModal(addButtonId, modalId, formId, onSuccess) {
 
     // Add Secret button handler
     document.getElementById(addButtonId).addEventListener('click', function () {
-        const modal = new bootstrap.Modal(document.getElementById(modalId));
+        const modalEl = document.getElementById(modalId);
         document.getElementById(formId).reset();
         document.getElementById('quickSecretError').style.display = 'none';
         resetSubmitButton();
-        modal.show();
+        bindDismissButtons(modalEl);
+        showModal(modalEl);
     });
 
     // Submit Quick Secret
@@ -247,7 +250,7 @@ export function setupQuickSecretModal(addButtonId, modalId, formId, onSuccess) {
             .then((response) => response.json().then((data) => ({ status: response.status, data })))
             .then((result) => {
                 if (result.status === 201 && result.data.success) {
-                    bootstrap.Modal.getInstance(document.getElementById(modalId)).hide();
+                    hideModal(document.getElementById(modalId));
                     resetSubmitButton();
 
                     // Call success callback with new secret ID

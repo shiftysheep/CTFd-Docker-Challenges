@@ -229,14 +229,14 @@ document.addEventListener('alpine:init', () => {
     }
 });
 
-// Check if Alpine.js and Bootstrap are available
-function hasAlpineAndBootstrap() {
-    return typeof Alpine !== 'undefined' && typeof bootstrap !== 'undefined' && bootstrap.Modal;
+// Check if Alpine.js is available
+function hasAlpine() {
+    return typeof Alpine !== 'undefined';
 }
 
 // Alert modal function (CTFd Pattern with Alpine.js)
 function ezal(args) {
-    if (!hasAlpineAndBootstrap()) {
+    if (!hasAlpine()) {
         // Fallback to native alert
         alert(args.title + '\n\n' + args.body);
         return;
@@ -249,10 +249,35 @@ function ezal(args) {
         button: args.button || 'Got it!',
     });
 
-    // Show modal using Bootstrap Modal API
+    // Show modal using vanilla JS (no bootstrap.Modal dependency)
     const modalElement = document.querySelector('[x-ref="alertModal"]');
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
+    modalElement.classList.add('show');
+    modalElement.style.display = 'block';
+    modalElement.setAttribute('aria-modal', 'true');
+    modalElement.removeAttribute('aria-hidden');
+
+    var backdrop = document.querySelector('.modal-backdrop');
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        document.body.appendChild(backdrop);
+    }
+    document.body.classList.add('modal-open');
+
+    // Bind dismiss buttons for close/cancel
+    modalElement
+        .querySelectorAll('[data-bs-dismiss="modal"], [data-dismiss="modal"]')
+        .forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                modalElement.classList.remove('show');
+                modalElement.style.display = 'none';
+                modalElement.removeAttribute('aria-modal');
+                modalElement.setAttribute('aria-hidden', 'true');
+                var bd = document.querySelector('.modal-backdrop');
+                if (bd) bd.remove();
+                document.body.classList.remove('modal-open');
+            });
+        });
 }
 
 // Expose containerStatus to global scope for Alpine.js x-data directives
