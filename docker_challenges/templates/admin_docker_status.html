@@ -106,7 +106,7 @@
                     <button
                         type="button"
                         class="btn btn-danger"
-                        @click="$store.confirmModal.onConfirm(); $refs.confirmModal.dispatchEvent(new Event('hide.bs.modal'))"
+                        @click="$store.confirmModal.onConfirm(); hideModal($refs.confirmModal)"
                     >
                         Yes
                     </button>
@@ -296,14 +296,49 @@
         }
     });
 
-    // Check if Alpine.js and Bootstrap are available
-    function hasAlpineAndBootstrap() {
-        return typeof Alpine !== 'undefined' && typeof bootstrap !== 'undefined' && bootstrap.Modal;
+    // Vanilla JS modal helpers (framework-agnostic, works with BS4/BS5 CSS)
+    function showModal(modalEl) {
+        modalEl.classList.add('show');
+        modalEl.style.display = 'block';
+        modalEl.setAttribute('aria-modal', 'true');
+        modalEl.removeAttribute('aria-hidden');
+        var backdrop = document.querySelector('.modal-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop fade show';
+            document.body.appendChild(backdrop);
+        }
+        document.body.classList.add('modal-open');
+    }
+
+    function hideModal(modalEl) {
+        modalEl.classList.remove('show');
+        modalEl.style.display = 'none';
+        modalEl.removeAttribute('aria-modal');
+        modalEl.setAttribute('aria-hidden', 'true');
+        var backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+        document.body.classList.remove('modal-open');
+    }
+
+    function bindDismissButtons(modalEl) {
+        modalEl
+            .querySelectorAll('[data-bs-dismiss="modal"], [data-dismiss="modal"]')
+            .forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    hideModal(modalEl);
+                });
+            });
+    }
+
+    // Check if Alpine.js is available
+    function hasAlpine() {
+        return typeof Alpine !== 'undefined';
     }
 
     // Confirmation modal function (CTFd Pattern with Alpine.js)
     function ezq(args) {
-        if (!hasAlpineAndBootstrap()) {
+        if (!hasAlpine()) {
             // Fallback to native confirm
             if (confirm(args.title + '\n\n' + args.body)) {
                 args.success();
@@ -318,15 +353,15 @@
             onConfirm: args.success,
         });
 
-        // Show modal using Bootstrap Modal API
+        // Show modal using vanilla JS
         const modalElement = document.querySelector('[x-ref="confirmModal"]');
-        const modal = new bootstrap.Modal(modalElement);
-        modal.show();
+        bindDismissButtons(modalElement);
+        showModal(modalElement);
     }
 
     // Alert modal function (CTFd Pattern with Alpine.js)
     function ezal(args) {
-        if (!hasAlpineAndBootstrap()) {
+        if (!hasAlpine()) {
             // Fallback to native alert
             alert(args.title + '\n\n' + args.body);
             return;
@@ -339,10 +374,10 @@
             button: args.button || 'Got it!',
         });
 
-        // Show modal using Bootstrap Modal API
+        // Show modal using vanilla JS
         const modalElement = document.querySelector('[x-ref="alertModal"]');
-        const modal = new bootstrap.Modal(modalElement);
-        modal.show();
+        bindDismissButtons(modalElement);
+        showModal(modalElement);
     }
 </script>
 {% endblock scripts %}

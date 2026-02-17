@@ -40,12 +40,12 @@ This is a **LIVING DOCUMENT**. Agents working in this codebase should add discov
 - **Workaround**: Use global scope functions in `view.js` (expose to `window`). Admin forms can use ES6 modules (full page loads).
 - **Reference**: `assets/view.js`, `CLAUDE.md` - "JavaScript/Frontend Development"
 
-### Bootstrap Tooltips - Not Available in Core Theme
+### Bootstrap JS API - Not Available as Global
 
-- **Issue**: CTFd core theme doesn't expose `bootstrap` as global variable, tooltip initialization fails
-- **Impact**: Removed tooltip functionality from v3.0.0+ (feature removal, not critical)
-- **Workaround**: None - tooltips removed from UI
-- **Reference**: v3.0.0 release notes, `CLAUDE.md` - "Fixed in v3.0.0"
+- **Issue**: CTFd does not expose `bootstrap` as a reliable global variable for plugins. The admin theme uses Bootstrap 4 via jQuery compat layer; the core theme uses Bootstrap 5 CSS + Alpine.js. Neither exposes `bootstrap.Modal` for direct use.
+- **Impact**: Any code calling `new bootstrap.Modal()` or `bootstrap.Modal.getInstance()` throws `ReferenceError: bootstrap is not defined`
+- **Workaround**: Use vanilla JS modal toggling (CSS class manipulation) instead of `bootstrap.Modal` API. Shared helper in `assets/shared/modalUtils.js` exports `showModal()`, `hideModal()`, and `bindDismissButtons()`. Inline scripts in templates define equivalent functions locally (can't import ES modules in inline scripts).
+- **Reference**: `assets/shared/modalUtils.js`, `templates/admin_docker_secrets.html`, `templates/admin_docker_status.html`, `assets/view.js`
 
 ### Dynamic Form Loading - DOMContentLoaded Conflicts
 
