@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [unreleased]: https://github.com/shiftysheep/CTFd-Docker-Challenges/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/shiftysheep/CTFd-Docker-Challenges/releases/tag/v1.0.0
 
+## v3.1.2 (2026-02-17)
+
+### Fix
+
+- **frontend**: replace bootstrap.Modal with vanilla JS helpers (#14)
+- **tls**: prevent cert file deletion on config form resubmission (#12)
+
 ## v3.1.1 (2026-02-12)
 
 ### Fix
