@@ -23,12 +23,14 @@ class TestSecretAPIGet:
     """Tests for SecretAPI.get (list secrets)."""
 
     @pytest.mark.medium
+    @patch("docker_challenges.api.api.is_swarm_mode")
     @patch("docker_challenges.api.api.get_secrets")
     @patch("docker_challenges.api.api.DockerConfig")
-    def test_get_returns_secret_list(self, mock_config_cls, mock_get_secrets):
-        """GET returns success with list of secrets."""
+    def test_get_returns_secret_list(self, mock_config_cls, mock_get_secrets, mock_is_swarm):
+        """GET returns success with list of secrets when in swarm mode."""
         mock_docker = MagicMock()
         mock_config_cls.query.filter_by.return_value.first.return_value = mock_docker
+        mock_is_swarm.return_value = True
         mock_get_secrets.return_value = [
             {"ID": "sec1", "Name": "my_secret"},
             {"ID": "sec2", "Name": "db_pass"},
@@ -43,21 +45,44 @@ class TestSecretAPIGet:
                 {"name": "my_secret", "id": "sec1"},
                 {"name": "db_pass", "id": "sec2"},
             ],
+            "swarm_mode": True,
         }
 
     @pytest.mark.medium
+    @patch("docker_challenges.api.api.is_swarm_mode")
     @patch("docker_challenges.api.api.get_secrets")
     @patch("docker_challenges.api.api.DockerConfig")
-    def test_get_returns_empty_list_when_no_secrets(self, mock_config_cls, mock_get_secrets):
-        """GET returns success with empty data when no secrets exist."""
+    def test_get_returns_empty_list_when_swarm_active_no_secrets(
+        self, mock_config_cls, mock_get_secrets, mock_is_swarm
+    ):
+        """GET returns success with empty data when in swarm mode but no secrets exist."""
         mock_docker = MagicMock()
         mock_config_cls.query.filter_by.return_value.first.return_value = mock_docker
+        mock_is_swarm.return_value = True
         mock_get_secrets.return_value = []
 
         api = SecretAPI()
         result = api.get()
 
-        assert result == {"success": True, "data": []}
+        assert result == {"success": True, "data": [], "swarm_mode": True}
+
+    @pytest.mark.medium
+    @patch("docker_challenges.api.api.is_swarm_mode")
+    @patch("docker_challenges.api.api.get_secrets")
+    @patch("docker_challenges.api.api.DockerConfig")
+    def test_get_returns_swarm_mode_false_when_not_swarm(
+        self, mock_config_cls, mock_get_secrets, mock_is_swarm
+    ):
+        """GET returns swarm_mode=false and skips get_secrets when not in swarm mode."""
+        mock_docker = MagicMock()
+        mock_config_cls.query.filter_by.return_value.first.return_value = mock_docker
+        mock_is_swarm.return_value = False
+
+        api = SecretAPI()
+        result = api.get()
+
+        assert result == {"success": True, "data": [], "swarm_mode": False}
+        mock_get_secrets.assert_not_called()
 
 
 # ============================================================================

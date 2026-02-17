@@ -138,11 +138,14 @@ export function fetchDockerSecrets(selectElementId, options = {}) {
             // Clear existing options
             selectElement.innerHTML = '';
 
-            // Handle empty secrets list (e.g., Docker not in swarm mode)
+            // Handle empty secrets list with contextual messaging
             if (secrets.length === 0) {
                 const option = document.createElement('option');
                 option.value = '';
-                option.textContent = '(No secrets available - Docker not in swarm mode)';
+                option.textContent =
+                    result.swarm_mode === false
+                        ? '(No secrets available - Docker not in swarm mode)'
+                        : '(No secrets created yet - use Add Secret to create one)';
                 selectElement.appendChild(option);
                 selectElement.disabled = true;
                 return;
