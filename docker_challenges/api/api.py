@@ -22,6 +22,7 @@ from ..functions.general import (
     get_required_ports,
     get_secrets,
     get_unavailable_ports,
+    is_swarm_mode,
 )
 from ..functions.services import create_service, delete_service
 from ..models.models import (
@@ -457,13 +458,10 @@ class SecretAPI(Resource):
     @admins_only
     def get(self):
         docker = DockerConfig.query.filter_by(id=1).first()
-        secrets = get_secrets(docker)
-        # Return empty list if no secrets available (e.g., Docker not in swarm mode)
-        # This is a valid state, not an error
-        data = []
-        for i in secrets:
-            data.append({"name": i["Name"], "id": i["ID"]})
-        return {"success": True, "data": data}
+        swarm = is_swarm_mode(docker)
+        secrets = get_secrets(docker) if swarm else []
+        data = [{"name": i["Name"], "id": i["ID"]} for i in secrets]
+        return {"success": True, "data": data, "swarm_mode": swarm}
 
     @admins_only
     def post(self):
