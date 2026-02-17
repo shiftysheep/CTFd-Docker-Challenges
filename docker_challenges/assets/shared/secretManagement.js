@@ -215,10 +215,55 @@ export function setupQuickSecretModal(addButtonId, modalId, formId, onSuccess) {
         submitBtn.innerHTML = 'Create & Select';
     }
 
+    // Note: CTFd loads challenge forms inside a parent <form>, so the nested
+    // <form id="quickSecretForm"> gets stripped by the browser (invalid HTML).
+    // We fall back to the modal element for reset/validation when this happens.
+    function getFormOrModal() {
+        return document.getElementById(formId) || document.getElementById(modalId);
+    }
+
+    function resetFormFields() {
+        const form = document.getElementById(formId);
+        if (form) {
+            form.reset();
+            return;
+        }
+        // Fallback: reset inputs manually when <form> was stripped
+        const modal = document.getElementById(modalId);
+        modal.querySelectorAll('input, textarea').forEach((el) => {
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = el.defaultChecked;
+            } else {
+                el.value = '';
+            }
+        });
+    }
+
+    function validateFields() {
+        const form = document.getElementById(formId);
+        if (form) {
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return false;
+            }
+            return true;
+        }
+        // Fallback: validate required inputs manually
+        const modal = document.getElementById(modalId);
+        const inputs = modal.querySelectorAll('input[required], textarea[required]');
+        for (const input of inputs) {
+            if (!input.checkValidity()) {
+                input.reportValidity();
+                return false;
+            }
+        }
+        return true;
+    }
+
     // Add Secret button handler
     document.getElementById(addButtonId).addEventListener('click', function () {
         const modalEl = document.getElementById(modalId);
-        document.getElementById(formId).reset();
+        resetFormFields();
         document.getElementById('quickSecretError').style.display = 'none';
         resetSubmitButton();
         bindDismissButtons(modalEl);
@@ -227,9 +272,7 @@ export function setupQuickSecretModal(addButtonId, modalId, formId, onSuccess) {
 
     // Submit Quick Secret
     document.getElementById('submitQuickSecret').addEventListener('click', function () {
-        const form = document.getElementById(formId);
-        if (!form.checkValidity()) {
-            form.reportValidity();
+        if (!validateFields()) {
             return;
         }
 

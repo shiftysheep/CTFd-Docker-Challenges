@@ -251,6 +251,11 @@ function ezal(args) {
 
     // Show modal using vanilla JS (no bootstrap.Modal dependency)
     const modalElement = document.querySelector('[x-ref="alertModal"]');
+    if (!modalElement) {
+        // Modal template not present (e.g., admin page context) — fall back to native alert
+        alert(args.title + '\n\n' + args.body);
+        return;
+    }
     modalElement.classList.add('show');
     modalElement.style.display = 'block';
     modalElement.setAttribute('aria-modal', 'true');
