@@ -14,7 +14,69 @@
 
     <!-- Connection information - shown when container is running -->
     <div x-show="containerRunning">
-        <pre x-text="getConnectionInfo()"></pre>
+        <div
+            style="
+                background: #1e1e2e;
+                border-radius: 8px;
+                padding: 16px;
+                text-align: left;
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                color: #cdd6f4;
+            "
+        >
+            <div style="margin-bottom: 12px; font-weight: bold; color: #a6adc8">
+                Docker Container Information:
+            </div>
+            <template x-for="(port, index) in getParsedPorts()" :key="index">
+                <div
+                    style="
+                        display: flex;
+                        align-items: center;
+                        padding: 6px 0;
+                        border-bottom: 1px solid #313244;
+                        gap: 8px;
+                    "
+                >
+                    <template x-if="port.isLink">
+                        <a
+                            :href="port.connectionUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style="color: #89b4fa; text-decoration: underline"
+                            x-text="port.connectionUrl"
+                        ></a>
+                    </template>
+                    <template x-if="!port.isLink">
+                        <span x-text="port.connectionUrl"></span>
+                    </template>
+                    <span x-text="port.targetLabel" style="color: #6c7086; font-size: 12px"></span>
+                    <button
+                        @click="copyConnectionUrl(index, port)"
+                        style="
+                            margin-left: auto;
+                            background: #313244;
+                            border: 1px solid #45475a;
+                            border-radius: 4px;
+                            color: #cdd6f4;
+                            padding: 4px 10px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            display: flex;
+                            align-items: center;
+                            gap: 4px;
+                        "
+                    >
+                        <template x-if="copiedIndex !== index">
+                            <span><i class="fas fa-copy"></i> Copy</span>
+                        </template>
+                        <template x-if="copiedIndex === index">
+                            <span style="color: #a6e3a1"><i class="fas fa-check"></i> Copied!</span>
+                        </template>
+                    </button>
+                </div>
+            </template>
+        </div>
         <div class="mt-2">
             <span x-text="countdownText"></span>
             <!-- Revert button appears when countdown expires -->

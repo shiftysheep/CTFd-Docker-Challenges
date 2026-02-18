@@ -6,6 +6,52 @@ var CONTAINER_POLL_MAX_INTERVAL_MS = 300000; // 5 minutes (max backoff)
 var CONTAINER_POLL_BACKOFF_MULTIPLIER = 2; // Double interval on each failure
 var MS_PER_SECOND = 1000;
 
+var HTTP_PORTS = [80, 8080, 3000, 5000, 8000, 8888, 9000];
+var HTTPS_PORTS = [443, 8443];
+
+function parsePort(portStr) {
+    portStr = portStr.trim();
+    // Both-sided: "58438/tcp->80/tcp"
+    var bothMatch = portStr.match(/^(\d+)\/(\w+)->(\d+)\/(\w+)$/);
+    if (bothMatch) {
+        return {
+            hostPort: bothMatch[1],
+            targetPort: bothMatch[3],
+            protocol: bothMatch[4],
+        };
+    }
+    // Container: "58438->80/tcp"
+    var containerMatch = portStr.match(/^(\d+)->(\d+)\/(\w+)$/);
+    if (containerMatch) {
+        return {
+            hostPort: containerMatch[1],
+            targetPort: containerMatch[2],
+            protocol: containerMatch[3],
+        };
+    }
+    // Service: "58438/tcp-> 80"
+    var serviceMatch = portStr.match(/^(\d+)\/(\w+)->\s*(\d+)$/);
+    if (serviceMatch) {
+        return {
+            hostPort: serviceMatch[1],
+            targetPort: serviceMatch[3],
+            protocol: serviceMatch[2],
+        };
+    }
+    return null;
+}
+
+function buildConnectionUrl(host, hostPort, targetPort) {
+    var target = parseInt(targetPort);
+    if (HTTPS_PORTS.indexOf(target) !== -1) {
+        return { url: 'https://' + host + ':' + hostPort, isLink: true };
+    }
+    if (HTTP_PORTS.indexOf(target) !== -1) {
+        return { url: 'http://' + host + ':' + hostPort, isLink: true };
+    }
+    return { url: host + ':' + hostPort, isLink: false };
+}
+
 CTFd._internal.challenge.data = undefined;
 
 CTFd._internal.challenge.renderer = null;
@@ -57,6 +103,7 @@ function containerStatus(container, challengeId) {
         consecutiveFailures: 0,
         _destroyed: false,
         _onModalHidden: null,
+        copiedIndex: -1,
 
         async init() {
             await this.pollStatus();
@@ -234,6 +281,44 @@ function containerStatus(container, challengeId) {
             const portList = this.ports.split(',');
             const lines = portList.map((port) => `Host: ${this.host} Port: ${port.trim()}`);
             return 'Docker Container Information:\n' + lines.join('\n');
+        },
+
+        getParsedPorts() {
+            if (!this.containerRunning || !this.ports) return [];
+            var self = this;
+            return this.ports.split(',').map(function (portStr) {
+                var parsed = parsePort(portStr);
+                if (!parsed) {
+                    return {
+                        connectionUrl: portStr.trim(),
+                        isLink: false,
+                        targetLabel: '',
+                        raw: portStr.trim(),
+                    };
+                }
+                var urlInfo = buildConnectionUrl(self.host, parsed.hostPort, parsed.targetPort);
+                return {
+                    connectionUrl: urlInfo.url,
+                    isLink: urlInfo.isLink,
+                    targetLabel: '(\u2192 ' + parsed.targetPort + '/' + parsed.protocol + ')',
+                    raw: portStr.trim(),
+                };
+            });
+        },
+
+        copyConnectionUrl(index, port) {
+            var self = this;
+            navigator.clipboard
+                .writeText(port.connectionUrl)
+                .then(function () {
+                    self.copiedIndex = index;
+                    setTimeout(function () {
+                        if (self.copiedIndex === index) self.copiedIndex = -1;
+                    }, 1500);
+                })
+                .catch(function (err) {
+                    console.error('Copy failed:', err);
+                });
         },
     };
 }
