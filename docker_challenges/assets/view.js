@@ -1,9 +1,10 @@
 // Inline constants (cannot use ES6 imports due to Alpine.js race condition)
 // See CLAUDE.md for explanation of why ES6 modules don't work for challenge views
-const CONTAINER_POLL_INTERVAL_MS = 30000; // 30 seconds (base interval)
-const CONTAINER_POLL_MAX_INTERVAL_MS = 300000; // 5 minutes (max backoff)
-const CONTAINER_POLL_BACKOFF_MULTIPLIER = 2; // Double interval on each failure
-const MS_PER_SECOND = 1000;
+// Using var so the script can be re-evaluated when switching between Docker challenges
+var CONTAINER_POLL_INTERVAL_MS = 30000; // 30 seconds (base interval)
+var CONTAINER_POLL_MAX_INTERVAL_MS = 300000; // 5 minutes (max backoff)
+var CONTAINER_POLL_BACKOFF_MULTIPLIER = 2; // Double interval on each failure
+var MS_PER_SECOND = 1000;
 
 CTFd._internal.challenge.data = undefined;
 
