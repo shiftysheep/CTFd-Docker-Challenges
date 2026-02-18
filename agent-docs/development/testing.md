@@ -19,3 +19,4 @@ This document covers ONLY non-standard testing aspects. For complete testing pro
 
 - `docker compose up` starts full stack for manual testing
 - CTFd accessible at `http://localhost` (port 80 via nginx)
+- Playwright tests against Docker Compose catch format discrepancies (e.g., port string variations) that static code analysis cannot detect—Docker daemon behavior differs from code reading
