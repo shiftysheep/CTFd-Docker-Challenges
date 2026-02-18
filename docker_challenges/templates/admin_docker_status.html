@@ -81,64 +81,54 @@
     </div>
 </div>
 
-<!-- Alpine.js Modal Templates (CTFd Pattern) -->
-<div x-data>
-    <!-- Confirmation Modal -->
-    <div class="modal fade" x-ref="confirmModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" x-text="$store.confirmModal.title"></h5>
-                    <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                    ></button>
-                </div>
-                <div class="modal-body">
-                    <p x-text="$store.confirmModal.body"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        No
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-danger"
-                        @click="$store.confirmModal.onConfirm(); hideModal($refs.confirmModal)"
-                    >
-                        Yes
-                    </button>
-                </div>
+<!-- Modal Templates (vanilla JS - no Alpine.js dependency) -->
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmModalTitle"></h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmModalBody"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+                <button type="button" class="btn btn-danger" id="confirmModalYes">Yes</button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Alert Modal -->
-    <div class="modal fade" x-ref="alertModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" x-text="$store.alertModal.title"></h5>
-                    <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                    ></button>
-                </div>
-                <div class="modal-body">
-                    <p x-text="$store.alertModal.body"></p>
-                </div>
-                <div class="modal-footer">
-                    <button
-                        type="button"
-                        class="btn btn-primary"
-                        data-bs-dismiss="modal"
-                        x-text="$store.alertModal.button"
-                    ></button>
-                </div>
+<!-- Alert Modal -->
+<div class="modal fade" id="alertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="alertModalTitle"></h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <p id="alertModalBody"></p>
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    data-bs-dismiss="modal"
+                    id="alertModalButton"
+                ></button>
             </div>
         </div>
     </div>
@@ -261,41 +251,6 @@
     }
 </script>
 <script>
-    // Initialize Alpine.js stores for modals (CTFd Pattern)
-    // Initialize immediately to avoid undefined store errors
-    if (typeof Alpine !== 'undefined') {
-        Alpine.store('confirmModal', {
-            title: '',
-            body: '',
-            onConfirm: () => {},
-        });
-
-        Alpine.store('alertModal', {
-            title: '',
-            body: '',
-            button: 'Got it!',
-        });
-    }
-
-    // Also listen for alpine:init in case Alpine loads later
-    document.addEventListener('alpine:init', () => {
-        if (!Alpine.store('confirmModal')) {
-            Alpine.store('confirmModal', {
-                title: '',
-                body: '',
-                onConfirm: () => {},
-            });
-        }
-
-        if (!Alpine.store('alertModal')) {
-            Alpine.store('alertModal', {
-                title: '',
-                body: '',
-                button: 'Got it!',
-            });
-        }
-    });
-
     // Vanilla JS modal helpers (framework-agnostic, works with BS4/BS5 CSS)
     function showModal(modalEl) {
         modalEl.classList.add('show');
@@ -331,53 +286,34 @@
             });
     }
 
-    // Check if Alpine.js is available
-    function hasAlpine() {
-        return typeof Alpine !== 'undefined';
-    }
-
-    // Confirmation modal function (CTFd Pattern with Alpine.js)
+    // Confirmation modal function (vanilla JS)
     function ezq(args) {
-        if (!hasAlpine()) {
-            // Fallback to native confirm
-            if (confirm(args.title + '\n\n' + args.body)) {
-                args.success();
-            }
-            return;
-        }
+        var modalEl = document.getElementById('confirmModal');
+        document.getElementById('confirmModalTitle').textContent = args.title;
+        document.getElementById('confirmModalBody').textContent = args.body;
 
-        // Set Alpine store data
-        Alpine.store('confirmModal', {
-            title: args.title,
-            body: args.body,
-            onConfirm: args.success,
+        // Replace Yes button to clear previous listeners
+        var oldBtn = document.getElementById('confirmModalYes');
+        var newBtn = oldBtn.cloneNode(true);
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+        newBtn.addEventListener('click', function () {
+            args.success();
+            hideModal(modalEl);
         });
 
-        // Show modal using vanilla JS
-        const modalElement = document.querySelector('[x-ref="confirmModal"]');
-        bindDismissButtons(modalElement);
-        showModal(modalElement);
+        bindDismissButtons(modalEl);
+        showModal(modalEl);
     }
 
-    // Alert modal function (CTFd Pattern with Alpine.js)
+    // Alert modal function (vanilla JS)
     function ezal(args) {
-        if (!hasAlpine()) {
-            // Fallback to native alert
-            alert(args.title + '\n\n' + args.body);
-            return;
-        }
+        var modalEl = document.getElementById('alertModal');
+        document.getElementById('alertModalTitle').textContent = args.title;
+        document.getElementById('alertModalBody').textContent = args.body;
+        document.getElementById('alertModalButton').textContent = args.button || 'Got it!';
 
-        // Set Alpine store data
-        Alpine.store('alertModal', {
-            title: args.title,
-            body: args.body,
-            button: args.button || 'Got it!',
-        });
-
-        // Show modal using vanilla JS
-        const modalElement = document.querySelector('[x-ref="alertModal"]');
-        bindDismissButtons(modalElement);
-        showModal(modalElement);
+        bindDismissButtons(modalEl);
+        showModal(modalEl);
     }
 </script>
 {% endblock scripts %}
