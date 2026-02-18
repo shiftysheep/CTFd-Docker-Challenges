@@ -54,11 +54,37 @@ function containerStatus(container, challengeId) {
         currentPollInterval: CONTAINER_POLL_INTERVAL_MS,
         pollTimeoutId: null,
         consecutiveFailures: 0,
+        _destroyed: false,
+        _onModalHidden: null,
 
         async init() {
             await this.pollStatus();
             // Schedule next poll with dynamic interval
             this.schedulePoll();
+
+            // Clean up timers when challenge modal closes
+            const modal = this.$el.closest('.modal');
+            if (modal) {
+                this._onModalHidden = () => this.destroy();
+                modal.addEventListener('hidden.bs.modal', this._onModalHidden, { once: true });
+            }
+        },
+
+        destroy() {
+            this._destroyed = true;
+            if (this.pollTimeoutId) {
+                clearTimeout(this.pollTimeoutId);
+                this.pollTimeoutId = null;
+            }
+            if (this.countdownInterval) {
+                clearTimeout(this.countdownInterval);
+                this.countdownInterval = null;
+            }
+            const modal = this.$el?.closest('.modal');
+            if (modal && this._onModalHidden) {
+                modal.removeEventListener('hidden.bs.modal', this._onModalHidden);
+                this._onModalHidden = null;
+            }
         },
 
         /**
@@ -70,6 +96,7 @@ function containerStatus(container, challengeId) {
             if (this.pollTimeoutId) {
                 clearTimeout(this.pollTimeoutId);
             }
+            if (this._destroyed) return;
 
             this.pollTimeoutId = setTimeout(() => this.pollStatus(), this.currentPollInterval);
         },
@@ -92,6 +119,7 @@ function containerStatus(container, challengeId) {
         },
 
         async pollStatus() {
+            if (this._destroyed) return;
             try {
                 const response = await fetch('/api/v1/docker_status');
                 const result = await response.json();
@@ -147,6 +175,7 @@ function containerStatus(container, challengeId) {
             }
 
             const updateTimer = () => {
+                if (this._destroyed) return;
                 const now = Date.now();
                 const distance = this.revertTime - now;
 
