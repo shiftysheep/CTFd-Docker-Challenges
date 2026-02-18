@@ -26,3 +26,20 @@ This document covers ONLY non-standard build aspects. For complete build procedu
 **No Build Artifacts**: Plugin deployed as source code (no compilation step)
 
 - Plugin loaded directly by CTFd from `CTFd/CTFd/plugins/docker_challenges/`
+
+## Version Bumping
+
+**Always bump the version after merging a PR.** Use Commitizen to auto-detect the increment:
+
+```bash
+cz bump          # Auto-detects patch/minor/major from commits
+cz bump --dry-run  # Preview before running
+```
+
+Commitizen updates `pyproject.toml`, `README.md`, and `CHANGELOG.md`, creates a commit, and tags it. Push the bump as a separate PR and then push the tag after merge:
+
+```bash
+git tag -d vX.Y.Z                    # Delete local tag (points to pre-squash commit)
+git tag vX.Y.Z <merged-commit-hash>  # Retag on the squash-merged commit
+git push origin vX.Y.Z               # Push tag to remote
+```
