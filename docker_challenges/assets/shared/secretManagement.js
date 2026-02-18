@@ -215,22 +215,16 @@ export function setupQuickSecretModal(addButtonId, modalId, formId, onSuccess) {
         submitBtn.innerHTML = 'Create & Select';
     }
 
-    // Note: CTFd loads challenge forms inside a parent <form>, so the nested
-    // <form id="quickSecretForm"> gets stripped by the browser (invalid HTML).
-    // We fall back to the modal element for reset/validation when this happens.
-    function getFormOrModal() {
+    // The quickSecretForm container is a <div> (not a <form>) to avoid nested
+    // form issues — CTFd wraps the challenge update template in its own <form>.
+    // We use the container to scope input queries for reset/validation.
+    function getFormContainer() {
         return document.getElementById(formId) || document.getElementById(modalId);
     }
 
     function resetFormFields() {
-        const form = document.getElementById(formId);
-        if (form) {
-            form.reset();
-            return;
-        }
-        // Fallback: reset inputs manually when <form> was stripped
-        const modal = document.getElementById(modalId);
-        modal.querySelectorAll('input, textarea').forEach((el) => {
+        const container = getFormContainer();
+        container.querySelectorAll('input, textarea').forEach((el) => {
             if (el.type === 'checkbox' || el.type === 'radio') {
                 el.checked = el.defaultChecked;
             } else {
@@ -240,22 +234,26 @@ export function setupQuickSecretModal(addButtonId, modalId, formId, onSuccess) {
     }
 
     function validateFields() {
-        const form = document.getElementById(formId);
-        if (form) {
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                return false;
-            }
-            return true;
+        const name = document.getElementById('quickSecretName');
+        const value = document.getElementById('quickSecretValue');
+        if (!name.value.trim()) {
+            name.focus();
+            document.getElementById('quickSecretError').textContent = 'Secret name is required';
+            document.getElementById('quickSecretError').style.display = 'block';
+            return false;
         }
-        // Fallback: validate required inputs manually
-        const modal = document.getElementById(modalId);
-        const inputs = modal.querySelectorAll('input[required], textarea[required]');
-        for (const input of inputs) {
-            if (!input.checkValidity()) {
-                input.reportValidity();
-                return false;
-            }
+        if (!name.checkValidity()) {
+            name.focus();
+            document.getElementById('quickSecretError').textContent =
+                'Secret name may only contain letters, numbers, dots, underscores, and hyphens';
+            document.getElementById('quickSecretError').style.display = 'block';
+            return false;
+        }
+        if (!value.value.trim()) {
+            value.focus();
+            document.getElementById('quickSecretError').textContent = 'Secret value is required';
+            document.getElementById('quickSecretError').style.display = 'block';
+            return false;
         }
         return true;
     }
