@@ -44,16 +44,23 @@ image_ports_namespace = Namespace(
 )
 
 
-def delete_docker(docker: DockerConfig, docker_type: str, instance_id: str) -> None:
-    """Delete a Docker container or service and remove from tracker."""
+def delete_docker(docker: DockerConfig, docker_type: str, instance_id: str) -> bool:
+    """Delete a Docker container or service and remove from tracker.
+
+    Returns:
+        True if deletion succeeded, False otherwise.
+    """
     if docker_type == "docker_service":
         if not delete_service(docker, instance_id):
-            raise RuntimeError(f"Failed to delete Docker service: {instance_id}")
+            logging.warning("Failed to delete Docker service: %s", instance_id)
+            return False
     else:
         if not delete_container(docker, instance_id):
-            raise RuntimeError(f"Failed to delete Docker container: {instance_id}")
+            logging.warning("Failed to delete Docker container: %s", instance_id)
+            return False
     DockerChallengeTracker.query.filter_by(instance_id=instance_id).delete()
     db.session.commit()
+    return True
 
 
 def _cleanup_stale_containers(docker: DockerConfig, session: Any, is_teams: bool) -> None:
@@ -75,7 +82,8 @@ def _cleanup_stale_containers(docker: DockerConfig, session: Any, is_teams: bool
             challenge = DockerServiceChallenge.query.filter_by(id=container.challenge_id).first()
 
         if challenge:
-            delete_docker(docker, challenge.type, container.instance_id)
+            if not delete_docker(docker, challenge.type, container.instance_id):
+                logging.warning("Stale cleanup failed for %s, skipping", container.instance_id)
 
 
 def _get_existing_container(
@@ -133,6 +141,8 @@ def _create_docker_instance(
         instance_id, data = create_container(
             docker, challenge.docker_image, session.name, portsbl, challenge.exposed_ports
         )
+        if not instance_id:
+            return None, None, None
         ports_json = json.loads(data)["HostConfig"]["PortBindings"]
         ports = [f"{values[0]['HostPort']}->{target}" for target, values in ports_json.items()]
 
@@ -144,7 +154,7 @@ def _handle_container_creation(
     challenge: DockerChallenge | DockerServiceChallenge,
     session: Any,
     is_teams: bool,
-) -> tuple[str, list[str]] | None:
+) -> tuple[str, list[str]] | None | bool:
     """Handle complete container/service creation workflow."""
     # Clean up stale containers (older than 2 hours)
     _cleanup_stale_containers(docker, session, is_teams)
@@ -158,13 +168,14 @@ def _handle_container_creation(
 
     # Revert container if it exists and is old enough
     if existing:
-        delete_docker(docker, challenge.type, existing.instance_id)
+        if not delete_docker(docker, challenge.type, existing.instance_id):
+            logging.warning("Revert failed for %s, proceeding", existing.instance_id)
 
     # Create new container/service
     portsbl = get_unavailable_ports(docker)
     instance_id, ports, _data = _create_docker_instance(docker, challenge, session, portsbl)
 
-    return (instance_id, ports) if instance_id else None
+    return (instance_id, ports) if instance_id else False
 
 
 def _get_all_challenges() -> dict[int, DockerChallenge | DockerServiceChallenge]:
@@ -185,11 +196,12 @@ def _kill_all_containers(
         if challenge:
             logging.debug("type:%s", challenge.type)
             logging.debug("instance_id:%s", tracker_entry.instance_id)
-            delete_docker(
+            if not delete_docker(
                 docker=docker_config,
                 docker_type=challenge.type,
                 instance_id=tracker_entry.instance_id,
-            )
+            ):
+                logging.warning("Nuke: failed to delete %s, continuing", tracker_entry.instance_id)
 
 
 def _kill_single_container(
@@ -207,9 +219,10 @@ def _kill_single_container(
     if not challenge:
         return {"success": False, "error": "Challenge not found"}, 404
 
-    delete_docker(
+    if not delete_docker(
         docker=docker_config, docker_type=challenge.type, instance_id=tracker_entry.instance_id
-    )
+    ):
+        return {"success": False, "error": "Failed to delete container"}, 500
     return None
 
 
