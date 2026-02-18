@@ -151,9 +151,8 @@ This is a **LIVING DOCUMENT**. Agents working in this codebase should add discov
 - **Workaround**: None - feature request
 - **Reference**: `CLAUDE.md` - "Outstanding Issues"
 
-### Individual Secret Permissions
+### ~~Individual Secret Permissions~~ (RESOLVED)
 
-- **Issue**: Docker secrets have global permission settings (0o600 or 0o777), not per-secret control
-- **Impact**: All secrets in a service share same permissions
-- **Workaround**: None - feature request
-- **Reference**: `CLAUDE.md` - "Outstanding Issues"
+- **Issue**: Docker secrets had global permission settings (0o600 or 0o777), not per-secret control
+- **Resolution**: Implemented per-secret protection in `e594a8c`. `docker_secrets` field changed from CSV string to JSON array of `{id, protected}` objects. Each secret now has its own file permission toggle (0o600 protected vs 0o777 world-readable).
+- **Reference**: `functions/services.py:_parse_docker_secrets()`, `assets/shared/secretManagement.js`, `decisions.md` - "Per-Secret JSON Format"

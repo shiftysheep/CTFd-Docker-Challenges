@@ -19,7 +19,7 @@ from CTFd.utils.user import get_ip
 from flask import Blueprint
 
 from ..functions.general import cleanup_container_on_solve
-from ..functions.services import delete_service
+from ..functions.services import _parse_docker_secrets, delete_service
 from ..models.models import DockerConfig, DockerServiceChallenge
 from ..validators import validate_exposed_ports as _validate_exposed_ports
 
@@ -60,7 +60,6 @@ class DockerServiceChallengeType(BaseChallenge):
         existing = DockerServiceChallenge.query.filter_by(
             id=challenge.id
         ).first()  # Adding to protect patches from removing configuration
-        data["protect_secrets"] = bool(int(data.get("protect_secrets", existing.protect_secrets)))
         data["docker_secrets"] = data.get("docker_secrets_array", existing.docker_secrets)
         data["docker_type"] = "service"
         if data.get("docker_secrets_array", None):
@@ -118,7 +117,7 @@ class DockerServiceChallengeType(BaseChallenge):
             "exposed_ports": challenge.exposed_ports,
             "description": challenge.description,
             "category": challenge.category,
-            "secrets": challenge.docker_secrets.split(","),
+            "secrets": _parse_docker_secrets(challenge.docker_secrets),
             "state": challenge.state,
             "max_attempts": challenge.max_attempts,
             "type": challenge.type,
@@ -140,7 +139,6 @@ class DockerServiceChallengeType(BaseChallenge):
         :return:
         """
         data = request.form or request.get_json()
-        data["protect_secrets"] = bool(int(data.get("protect_secrets", 0)))
         data["docker_secrets"] = data["docker_secrets_array"]
         data["docker_type"] = "service"
         del data["docker_secrets_array"]

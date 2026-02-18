@@ -6,9 +6,9 @@ import {
 } from './shared/portManagement.js';
 import {
     fetchDockerImages,
-    fetchDockerSecrets,
+    initSecretsManager,
+    addSecretToList,
     setupQuickSecretModal,
-    refreshSecretsDropdown,
 } from './shared/secretManagement.js';
 
 window.CTFd.plugin.run((_CTFd) => {
@@ -60,12 +60,23 @@ window.CTFd.plugin.run((_CTFd) => {
         loadExistingPorts: loadExistingPorts,
     });
 
-    // Fetch Docker secrets using shared module
-    fetchDockerSecrets('dockersecrets_select');
+    // Initialize secrets manager using shared module
+    initSecretsManager('secrets_dropdown', 'secrets_list', 'docker_secrets_input');
 
     // Setup quick secret creation modal using shared module
-    setupQuickSecretModal('add-secret-btn', 'addSecretModal', 'quickSecretForm', (newSecretId) =>
-        refreshSecretsDropdown('dockersecrets_select', newSecretId)
+    setupQuickSecretModal(
+        'add-secret-btn',
+        'addSecretModal',
+        'quickSecretForm',
+        (newSecretId, secretName) =>
+            addSecretToList(
+                'secrets_list',
+                'docker_secrets_input',
+                'secrets_dropdown',
+                newSecretId,
+                secretName,
+                true
+            )
     );
 
     // Setup form validation using shared module
