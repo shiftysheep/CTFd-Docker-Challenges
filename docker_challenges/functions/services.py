@@ -38,6 +38,13 @@ def _assign_service_ports(needed_ports: list, blocked_ports: list) -> list:
     return assigned_ports
 
 
+def _parse_docker_secrets(raw: str | None) -> list[dict]:
+    """Parse docker_secrets JSON field into list of {id, protected} dicts."""
+    if not raw or raw == "[]":
+        return []
+    return json.loads(raw)
+
+
 def _build_secrets_list(challenge: DockerServiceChallenge, docker: DockerConfig) -> list:
     """
     Build Docker secrets list with file permissions for service configuration.
@@ -51,11 +58,14 @@ def _build_secrets_list(challenge: DockerServiceChallenge, docker: DockerConfig)
     """
     all_secrets = get_secrets(docker)
     secrets_list = []
-    permissions = 0o600 if challenge.protect_secrets else 0o777
+    secret_configs = _parse_docker_secrets(challenge.docker_secrets)
 
-    for image_secret in challenge.docker_secrets.split(","):
+    for config in secret_configs:
+        secret_id = config["id"]
+        permissions = 0o600 if config.get("protected", False) else 0o777
+
         for secret in all_secrets:
-            if image_secret == secret["ID"]:
+            if secret_id == secret["ID"]:
                 secrets_list.append(
                     {
                         "File": {
@@ -64,7 +74,7 @@ def _build_secrets_list(challenge: DockerServiceChallenge, docker: DockerConfig)
                             "GID": "1",
                             "Mode": permissions,
                         },
-                        "SecretID": image_secret,
+                        "SecretID": secret_id,
                         "SecretName": secret["Name"],
                     }
                 )

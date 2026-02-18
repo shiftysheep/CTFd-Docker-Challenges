@@ -63,6 +63,5 @@ class DockerServiceChallenge(Challenges):
     id = db.Column(None, db.ForeignKey("challenges.id"), primary_key=True)
     docker_type = db.Column(db.String(128), index=True)
     docker_image = db.Column(db.String(128), index=True)
-    docker_secrets = db.Column(db.String(4096))
-    protect_secrets = db.Column(db.Boolean, default=False)
+    docker_secrets = db.Column(db.String(4096), default="[]")
     exposed_ports = db.Column(db.Text, default="")
