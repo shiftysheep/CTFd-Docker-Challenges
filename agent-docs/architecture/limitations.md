@@ -115,6 +115,13 @@ This is a **LIVING DOCUMENT**. Agents working in this codebase should add discov
 - **Workaround**: Follow manual testing checklist in CONTRIBUTING.md before PRs
 - **Reference**: `CONTRIBUTING.md` - "Manual Testing" section, `CLAUDE.md` - "Outstanding Issues"
 
+### Docker API - Port Format Variation
+
+- **Issue**: Docker API returns ports in different formats depending on daemon configuration. Backend code in `api/api.py` (lines 130-137) constructs port strings but actual format varies: container format (`hostPort->targetPort/protocol`), service format (`hostPort/protocol-> targetPort`), or both-sided format (`hostPort/protocol->targetPort/protocol`). The both-sided format was discovered during Playwright testing against Docker-in-Docker environment—not evident from static code analysis.
+- **Impact**: Frontend `parsePort()` function in `view.js` must handle all three formats to parse ports reliably
+- **Workaround**: Frontend parsing implemented with three-format support; discovered through live integration testing
+- **Reference**: `api/api.py:130-137`, `assets/view.js:parsePort()`, Playwright tests against docker-compose environment
+
 ---
 
 ## Deployment
