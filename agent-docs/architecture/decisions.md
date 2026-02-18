@@ -109,3 +109,22 @@ This document summarizes major architectural decisions made in the CTFd-Docker-C
 **Audit logging**: Secret names are logged with the acting admin's username for audit trails, but secret values are never logged to prevent credential exposure in log files.
 
 **Reference**: `api/api.py:474-496` — `SecretAPI.post()` checks `docker.tls_enabled` and `request.is_secure` before proceeding
+
+## Per-Secret JSON Format over CSV + Global Boolean
+
+**Decision**: Store Docker secrets as JSON array `[{"id":"...","protected":true/false}]` instead of CSV string + global `protect_secrets` boolean.
+
+**Rationale**: The original design applied a single file permission (0o600 or 0o777) to all secrets attached to a service challenge. In practice, some secrets (like database passwords) need restricted permissions while others (like API configuration) can be world-readable. Per-secret control requires encoding protection state alongside each secret ID.
+
+**Alternatives considered**:
+
+- **CSV + per-secret columns**: Would require a separate join table — overengineered for the use case.
+- **CSV with backwards compatibility**: Parsing CSV fallback adds complexity and testing burden for a format that should be migrated away from.
+
+**Format**: `docker_secrets` column stores `'[{"id":"secret_abc","protected":true},{"id":"secret_def","protected":false}]'` (JSON string, max 4096 chars). Parsed by `_parse_docker_secrets()` in `functions/services.py`.
+
+**Breaking change**: No backwards compatibility with CSV format. Existing service challenges must be deleted and recreated after upgrade. The `protect_secrets` column remains in SQLite (no column drops) but is no longer read or written.
+
+**Impact**: Frontend uses a list-based UI with per-secret "Protected" checkboxes instead of a multi-select dropdown + global checkbox. Hidden input serializes the JSON array on form submission.
+
+**Reference**: `functions/services.py:_parse_docker_secrets()`, `models/models.py:DockerServiceChallenge`, `assets/shared/secretManagement.js`, commit `e594a8c`
