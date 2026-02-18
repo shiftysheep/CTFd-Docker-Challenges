@@ -29,14 +29,16 @@ This document covers ONLY non-standard build aspects. For complete build procedu
 
 ## Version Bumping
 
-**Always bump the version after merging a PR.** Use Commitizen to auto-detect the increment:
+**Bump the version on the feature branch before merging the PR.** This keeps the bump commit in the same PR and reduces commit noise on `master`. Use Commitizen to auto-detect the increment:
 
 ```bash
-cz bump          # Auto-detects patch/minor/major from commits
 cz bump --dry-run  # Preview before running
+cz bump            # Auto-detects patch/minor/major from commits
 ```
 
-Commitizen updates `pyproject.toml`, `README.md`, and `CHANGELOG.md`, creates a commit, and tags it. Push the bump as a separate PR and then push the tag after merge:
+Commitizen updates `pyproject.toml`, `README.md`, and `CHANGELOG.md`, creates a commit, and tags it.
+
+After merging, retag the squash-merged commit and push the tag:
 
 ```bash
 git tag -d vX.Y.Z                    # Delete local tag (points to pre-squash commit)

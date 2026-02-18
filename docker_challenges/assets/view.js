@@ -1,9 +1,10 @@
 // Inline constants (cannot use ES6 imports due to Alpine.js race condition)
 // See CLAUDE.md for explanation of why ES6 modules don't work for challenge views
-const CONTAINER_POLL_INTERVAL_MS = 30000; // 30 seconds (base interval)
-const CONTAINER_POLL_MAX_INTERVAL_MS = 300000; // 5 minutes (max backoff)
-const CONTAINER_POLL_BACKOFF_MULTIPLIER = 2; // Double interval on each failure
-const MS_PER_SECOND = 1000;
+// Using var so the script can be re-evaluated when switching between Docker challenges
+var CONTAINER_POLL_INTERVAL_MS = 30000; // 30 seconds (base interval)
+var CONTAINER_POLL_MAX_INTERVAL_MS = 300000; // 5 minutes (max backoff)
+var CONTAINER_POLL_BACKOFF_MULTIPLIER = 2; // Double interval on each failure
+var MS_PER_SECOND = 1000;
 
 CTFd._internal.challenge.data = undefined;
 
@@ -54,11 +55,37 @@ function containerStatus(container, challengeId) {
         currentPollInterval: CONTAINER_POLL_INTERVAL_MS,
         pollTimeoutId: null,
         consecutiveFailures: 0,
+        _destroyed: false,
+        _onModalHidden: null,
 
         async init() {
             await this.pollStatus();
             // Schedule next poll with dynamic interval
             this.schedulePoll();
+
+            // Clean up timers when challenge modal closes
+            const modal = this.$el.closest('.modal');
+            if (modal) {
+                this._onModalHidden = () => this.destroy();
+                modal.addEventListener('hidden.bs.modal', this._onModalHidden, { once: true });
+            }
+        },
+
+        destroy() {
+            this._destroyed = true;
+            if (this.pollTimeoutId) {
+                clearTimeout(this.pollTimeoutId);
+                this.pollTimeoutId = null;
+            }
+            if (this.countdownInterval) {
+                clearTimeout(this.countdownInterval);
+                this.countdownInterval = null;
+            }
+            const modal = this.$el?.closest('.modal');
+            if (modal && this._onModalHidden) {
+                modal.removeEventListener('hidden.bs.modal', this._onModalHidden);
+                this._onModalHidden = null;
+            }
         },
 
         /**
@@ -70,6 +97,7 @@ function containerStatus(container, challengeId) {
             if (this.pollTimeoutId) {
                 clearTimeout(this.pollTimeoutId);
             }
+            if (this._destroyed) return;
 
             this.pollTimeoutId = setTimeout(() => this.pollStatus(), this.currentPollInterval);
         },
@@ -92,6 +120,7 @@ function containerStatus(container, challengeId) {
         },
 
         async pollStatus() {
+            if (this._destroyed) return;
             try {
                 const response = await fetch('/api/v1/docker_status');
                 const result = await response.json();
@@ -147,6 +176,7 @@ function containerStatus(container, challengeId) {
             }
 
             const updateTimer = () => {
+                if (this._destroyed) return;
                 const now = Date.now();
                 const distance = this.revertTime - now;
 
