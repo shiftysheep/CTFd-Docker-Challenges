@@ -47,6 +47,13 @@ This is a **LIVING DOCUMENT**. Agents working in this codebase should add discov
 - **Workaround**: Use vanilla JS modal toggling (CSS class manipulation) instead of `bootstrap.Modal` API. Shared helper in `assets/shared/modalUtils.js` exports `showModal()`, `hideModal()`, and `bindDismissButtons()`. Inline scripts in templates define equivalent functions locally (can't import ES modules in inline scripts).
 - **Reference**: `assets/shared/modalUtils.js`, `templates/admin_docker_secrets.html`, `templates/admin_docker_status.html`, `assets/view.js`
 
+### CTFd Outer Form - Nested `<form>` Tags Break Submit Handling
+
+- **Issue**: CTFd's admin challenge templates (`admin/challenges/update.html`, `admin/challenges/create.html`) wrap all `{% block %}` content inside a single `<form method="POST">`. HTML forbids nested forms — browsers silently drop the inner `<form>` start tag but the inner `</form>` closes the _outer_ form. This causes any elements after the inner `</form>` (e.g., the Update button) to fall outside the form, breaking CTFd's jQuery submit handler (`$("#challenge-update-container > form").submit()`).
+- **Impact**: Challenge update/create buttons silently fail with no error when a nested `<form>` is present in the template
+- **Workaround**: Use `<div>` instead of `<form>` for any container inside `{% block category %}` or other template blocks. Use explicit JS validation instead of HTML `required` attributes on inputs inside modals (hidden `required` inputs inside the outer form cause "not focusable" browser validation errors on submit).
+- **Reference**: `assets/create_service.html`, `assets/update_service.html`, `assets/shared/secretManagement.js`
+
 ### Dynamic Form Loading - DOMContentLoaded Conflicts
 
 - **Issue**: Challenge forms load dynamically via AJAX, not on initial page load. `DOMContentLoaded` event wrappers prevent API calls because DOM already loaded when scripts execute.

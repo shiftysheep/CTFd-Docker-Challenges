@@ -193,4 +193,4 @@ tracker = DockerChallengeTracker.query.filter_by(
 4. Audit logging (username + resource name, never values)
 5. TOCTOU awareness (Docker API as authoritative duplicate check)
 
-**Frontend**: Alpine.js modal with Bootstrap, bulk operations with confirmation dialog
+**Frontend**: Vanilla JS modals (CSS class manipulation via `modalUtils.js`), bulk operations with confirmation dialog. Avoid `<form>` tags inside modals rendered within CTFd's admin templates (see `limitations.md` - nested form issue).

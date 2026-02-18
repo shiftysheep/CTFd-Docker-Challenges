@@ -87,7 +87,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="quickSecretForm">
+                <div id="quickSecretForm">
                     <div class="mb-3">
                         <label for="quickSecretName" class="form-label">Secret Name</label>
                         <input
@@ -95,7 +95,6 @@
                             class="form-control"
                             id="quickSecretName"
                             pattern="[a-zA-Z0-9._-]+"
-                            required
                         />
                         <small class="text-muted"
                             >Letters, numbers, dots, underscores, hyphens only</small
@@ -103,19 +102,14 @@
                     </div>
                     <div class="mb-3">
                         <label for="quickSecretValue" class="form-label">Secret Value</label>
-                        <textarea
-                            class="form-control"
-                            id="quickSecretValue"
-                            rows="3"
-                            required
-                        ></textarea>
+                        <textarea class="form-control" id="quickSecretValue" rows="3"></textarea>
                     </div>
                     <div
                         id="quickSecretError"
                         class="alert alert-danger"
                         style="display: none"
                     ></div>
-                </form>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">

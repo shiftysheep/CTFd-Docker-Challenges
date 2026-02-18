@@ -213,6 +213,13 @@ Before submitting a PR, test the following scenarios:
 - [ ] Verify container cleanup on challenge solve
 - [ ] Verify 2-hour stale container cleanup
 
+#### Challenge Update
+
+- [ ] Update `docker` challenge (change name, value, state) and verify success toast
+- [ ] Update `docker_service` challenge and verify success toast
+- [ ] Quick secret modal opens, validates, and creates secret from update page
+- [ ] Quick secret modal opens, validates, and creates secret from create page
+
 #### Admin Functions
 
 - [ ] Docker config page saves settings correctly
