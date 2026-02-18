@@ -308,17 +308,40 @@ function containerStatus(container, challengeId) {
 
         copyConnectionUrl(index, port) {
             var self = this;
-            navigator.clipboard
-                .writeText(port.connectionUrl)
-                .then(function () {
-                    self.copiedIndex = index;
-                    setTimeout(function () {
-                        if (self.copiedIndex === index) self.copiedIndex = -1;
-                    }, 1500);
-                })
-                .catch(function (err) {
-                    console.error('Copy failed:', err);
-                });
+            var text = port.connectionUrl;
+
+            function onSuccess() {
+                self.copiedIndex = index;
+                setTimeout(function () {
+                    if (self.copiedIndex === index) self.copiedIndex = -1;
+                }, 1500);
+            }
+
+            // Clipboard API requires secure context (HTTPS or localhost)
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard
+                    .writeText(text)
+                    .then(onSuccess)
+                    .catch(function (err) {
+                        console.error('Copy failed:', err);
+                    });
+                return;
+            }
+
+            // Fallback for non-secure contexts (HTTP)
+            var textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                onSuccess();
+            } catch (err) {
+                console.error('Copy fallback failed:', err);
+            }
+            document.body.removeChild(textarea);
         },
     };
 }
