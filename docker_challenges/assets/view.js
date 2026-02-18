@@ -334,12 +334,18 @@ function containerStatus(container, challengeId) {
             textarea.style.position = 'fixed';
             textarea.style.opacity = '0';
             document.body.appendChild(textarea);
-            textarea.select();
+            textarea.focus();
+            textarea.setSelectionRange(0, textarea.value.length);
             try {
-                document.execCommand('copy');
-                onSuccess();
+                if (document.execCommand('copy')) {
+                    onSuccess();
+                } else {
+                    console.warn(
+                        'Copy failed: site is not HTTPS. Select the URL and copy manually.'
+                    );
+                }
             } catch (err) {
-                console.error('Copy fallback failed:', err);
+                console.warn('Copy failed: site is not HTTPS. Select the URL and copy manually.');
             }
             document.body.removeChild(textarea);
         },
