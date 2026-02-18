@@ -58,7 +58,7 @@ def create_container(
     team: str,
     portbl: list[int],
     exposed_ports: str | None = None,
-) -> tuple[str, str]:
+) -> tuple[str, str] | tuple[None, None]:
     """
     Create a standalone Docker container for a challenge instance.
 
@@ -104,6 +104,8 @@ def create_container(
         method="POST",
         data=data,
     )
+    if not r:
+        return None, None
     instance_id = find_existing(docker, container_name) if r.status_code == 409 else r.json()["Id"]
 
     do_request(docker, url=f"/containers/{instance_id}/start", method="POST")

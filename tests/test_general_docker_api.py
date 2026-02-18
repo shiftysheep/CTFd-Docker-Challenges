@@ -518,3 +518,13 @@ def test_delete_service_returns_false_on_none_response(mock_docker_config):
     from docker_challenges.functions.services import delete_service
     result = delete_service(mock_docker_config, "nonexistent_id")
     assert result is False
+
+
+@pytest.mark.medium
+def test_create_container_returns_none_on_unreachable(mock_docker_config):
+    """create_container returns (None, None) when Docker API is unreachable."""
+    mock_docker_config.hostname = ""
+    from docker_challenges.functions.containers import create_container
+    instance_id, data = create_container(mock_docker_config, "nginx:latest", "team1", [], "80/tcp")
+    assert instance_id is None
+    assert data is None
