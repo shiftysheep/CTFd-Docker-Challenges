@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [unreleased]: https://github.com/shiftysheep/CTFd-Docker-Challenges/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/shiftysheep/CTFd-Docker-Challenges/releases/tag/v1.0.0
 
+## v3.1.3 (2026-02-17)
+
+### Fix
+
+- **frontend**: resolve nested form breaking service challenge update (#16)
+
 ## v3.1.2 (2026-02-17)
 
 ### Fix
