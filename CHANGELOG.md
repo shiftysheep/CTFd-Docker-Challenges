@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [unreleased]: https://github.com/shiftysheep/CTFd-Docker-Challenges/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/shiftysheep/CTFd-Docker-Challenges/releases/tag/v1.0.0
 
+## v4.0.1 (2026-02-19)
+
+### Feat
+
+- **frontend**: add copyable connection URLs to challenge view (#21)
+
+### Fix
+
+- **models**: auto-populate exposed_ports from image metadata on API create (#26)
+- **frontend**: check execCommand return value and improve textarea focus
+- **frontend**: add clipboard fallback for non-secure HTTP contexts
+- **frontend**: replace Alpine.js modals with vanilla JS DOM manipulation
+- **containers**: add null safety for Docker API unreachable
+- **api**: handle delete_docker failures gracefully in batch operations
+
 ## v4.0.0 (2026-02-17)
 
 ## v3.1.4 (2026-02-17)
