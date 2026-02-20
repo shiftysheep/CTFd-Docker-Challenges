@@ -19,7 +19,7 @@ from CTFd.utils.user import get_ip
 from flask import Blueprint
 
 from ..functions.containers import delete_container
-from ..functions.general import cleanup_container_on_solve
+from ..functions.general import cleanup_container_on_solve, resolve_exposed_ports_from_image
 from ..models.models import DockerChallenge, DockerConfig
 from ..validators import validate_exposed_ports as _validate_exposed_ports
 
@@ -132,6 +132,14 @@ class DockerChallengeType(BaseChallenge):
         """
         data = request.form or request.get_json()
         data["docker_type"] = "container"
+
+        # Auto-populate exposed_ports from image metadata when not provided via API
+        if not data.get("exposed_ports") and data.get("docker_image"):
+            docker_config = DockerConfig.query.first()
+            if docker_config:
+                resolved = resolve_exposed_ports_from_image(docker_config, data["docker_image"])
+                if resolved:
+                    data["exposed_ports"] = resolved
 
         # Validate exposed_ports
         if "exposed_ports" in data:

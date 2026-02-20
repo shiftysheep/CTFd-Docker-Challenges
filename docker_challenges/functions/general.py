@@ -418,6 +418,31 @@ def get_required_ports(
     return list(ports)
 
 
+def resolve_exposed_ports_from_image(docker: Any, docker_image: str) -> str | None:
+    """
+    Fetch exposed ports from a Docker image's metadata.
+
+    Used to auto-populate exposed_ports when creating challenges via the API,
+    so the admin UI shows the correct ports without requiring manual entry.
+
+    Args:
+        docker: DockerConfig object
+        docker_image: Docker image name
+
+    Returns:
+        Comma-separated port string (e.g. "80/tcp,443/tcp") or None if no
+        ports found or Docker is unreachable.
+    """
+    try:
+        ports = get_required_ports(docker, docker_image, challenge_ports=None)
+        if not ports:
+            return None
+        return ",".join(sorted(ports))
+    except Exception:
+        logging.warning("Failed to resolve exposed ports from image %s", docker_image)
+        return None
+
+
 def get_user_container(
     user: Any, team: Any, challenge: Any, *, is_teams: bool
 ) -> DockerChallengeTracker | None:
