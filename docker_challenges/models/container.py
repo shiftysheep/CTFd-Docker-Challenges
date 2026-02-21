@@ -20,7 +20,7 @@ from flask import Blueprint
 
 from ..functions.containers import delete_container
 from ..functions.general import cleanup_container_on_solve, resolve_exposed_ports_from_image
-from ..models.models import DockerChallenge, DockerConfig
+from ..models.models import DockerChallenge, DockerChallengeTracker, DockerConfig
 from ..validators import validate_exposed_ports as _validate_exposed_ports
 
 
@@ -75,11 +75,26 @@ class DockerChallengeType(BaseChallenge):
     def delete(challenge):
         """
         This method is used to delete the resources used by a challenge.
-        NOTE: Will need to kill all containers here
 
         :param challenge:
         :return:
         """
+        docker = DockerConfig.query.filter_by(id=1).first()
+        tracker_entries = DockerChallengeTracker.query.filter_by(challenge_id=challenge.id).all()
+        for entry in tracker_entries:
+            if docker:
+                if not delete_container(docker, entry.instance_id):
+                    logging.warning(
+                        "Failed to delete container %s during challenge deletion, "
+                        "removing tracker entry anyway",
+                        entry.instance_id,
+                    )
+            else:
+                logging.warning(
+                    "No DockerConfig found; skipping Docker deletion for container %s",
+                    entry.instance_id,
+                )
+        DockerChallengeTracker.query.filter_by(challenge_id=challenge.id).delete()
         Fails.query.filter_by(challenge_id=challenge.id).delete()
         Solves.query.filter_by(challenge_id=challenge.id).delete()
         Flags.query.filter_by(challenge_id=challenge.id).delete()
