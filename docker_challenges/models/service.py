@@ -214,8 +214,6 @@ class DockerServiceChallengeType(BaseChallenge):
         )
         db.session.add(solve)
         db.session.commit()
-        # trying if this solves the detached instance error...
-        # db.session.close()
 
     @staticmethod
     def fail(user, team, challenge, request):
