@@ -341,7 +341,19 @@ class ContainerAPI(Resource):
             return {"success": False, "error": error_msg}, 403 if result is None else 500
 
         instance_id, ports = result
-        _track_container(docker, challenge, session, is_teams, instance_id, ports)
+        try:
+            _track_container(docker, challenge, session, is_teams, instance_id, ports)
+        except Exception:
+            logging.error(
+                "DB commit failed after creating %s instance %s; rolling back Docker resource",
+                challenge.docker_type,
+                instance_id,
+            )
+            if challenge.docker_type == "service":
+                delete_service(docker, instance_id)
+            else:
+                delete_container(docker, instance_id)
+            return {"success": False, "error": "Container creation failed"}, 500
 
         return {
             "success": True,

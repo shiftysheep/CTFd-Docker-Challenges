@@ -475,3 +475,137 @@ class TestCreateDockerInstance:
         assert instance_id is None
         assert ports is None
         assert data is None
+
+
+# ============================================================================
+# ContainerAPI.post() tracker rollback tests
+# ============================================================================
+
+
+class TestContainerAPIPostTrackerRollback:
+    """Tests for ContainerAPI.post() rollback behavior when _track_container fails."""
+
+    @pytest.mark.medium
+    @patch("docker_challenges.api.api.delete_service")
+    @patch("docker_challenges.api.api._track_container")
+    @patch("docker_challenges.api.api._handle_container_creation")
+    @patch("docker_challenges.api.api._get_challenge_by_id")
+    @patch("docker_challenges.api.api.DockerConfig")
+    @patch("docker_challenges.api.api.is_teams_mode")
+    @patch("docker_challenges.api.api.get_current_user")
+    @patch("docker_challenges.api.api._parse_container_request")
+    def test_service_is_deleted_when_db_commit_fails(
+        self,
+        mock_parse,
+        mock_get_user,
+        mock_is_teams,
+        mock_docker_config,
+        mock_get_challenge,
+        mock_handle,
+        mock_track,
+        mock_delete_service,
+    ):
+        """When _track_container raises, delete_service is called and 500 returned (service type)."""
+        from docker_challenges.api.api import ContainerAPI
+
+        mock_parse.return_value = ("1", None)
+        mock_is_teams.return_value = False
+        mock_get_user.return_value = MagicMock()
+        mock_docker = MagicMock()
+        mock_docker_config.query.filter_by.return_value.first.return_value = mock_docker
+        mock_challenge = MagicMock()
+        mock_challenge.docker_type = "service"
+        mock_get_challenge.return_value = mock_challenge
+        mock_handle.return_value = ("svc_abc", ["30000/tcp->80"])
+        mock_track.side_effect = Exception("DB commit failed")
+
+        api = ContainerAPI()
+        result = api.post()
+
+        response, status_code = result
+        assert status_code == 500
+        assert response["success"] is False
+        mock_delete_service.assert_called_once_with(mock_docker, "svc_abc")
+
+    @pytest.mark.medium
+    @patch("docker_challenges.api.api.delete_container")
+    @patch("docker_challenges.api.api._track_container")
+    @patch("docker_challenges.api.api._handle_container_creation")
+    @patch("docker_challenges.api.api._get_challenge_by_id")
+    @patch("docker_challenges.api.api.DockerConfig")
+    @patch("docker_challenges.api.api.is_teams_mode")
+    @patch("docker_challenges.api.api.get_current_user")
+    @patch("docker_challenges.api.api._parse_container_request")
+    def test_container_is_deleted_when_db_commit_fails(
+        self,
+        mock_parse,
+        mock_get_user,
+        mock_is_teams,
+        mock_docker_config,
+        mock_get_challenge,
+        mock_handle,
+        mock_track,
+        mock_delete_container,
+    ):
+        """When _track_container raises, delete_container is called and 500 returned (container type)."""
+        from docker_challenges.api.api import ContainerAPI
+
+        mock_parse.return_value = ("1", None)
+        mock_is_teams.return_value = False
+        mock_get_user.return_value = MagicMock()
+        mock_docker = MagicMock()
+        mock_docker_config.query.filter_by.return_value.first.return_value = mock_docker
+        mock_challenge = MagicMock()
+        mock_challenge.docker_type = "container"
+        mock_get_challenge.return_value = mock_challenge
+        mock_handle.return_value = ("cont_xyz", ["30001/tcp->80"])
+        mock_track.side_effect = Exception("DB commit failed")
+
+        api = ContainerAPI()
+        result = api.post()
+
+        response, status_code = result
+        assert status_code == 500
+        assert response["success"] is False
+        mock_delete_container.assert_called_once_with(mock_docker, "cont_xyz")
+
+    @pytest.mark.medium
+    @patch("docker_challenges.api.api._track_container")
+    @patch("docker_challenges.api.api._handle_container_creation")
+    @patch("docker_challenges.api.api._get_challenge_by_id")
+    @patch("docker_challenges.api.api.DockerConfig")
+    @patch("docker_challenges.api.api.is_teams_mode")
+    @patch("docker_challenges.api.api.get_current_user")
+    @patch("docker_challenges.api.api._parse_container_request")
+    def test_success_path_unaffected_when_no_exception(
+        self,
+        mock_parse,
+        mock_get_user,
+        mock_is_teams,
+        mock_docker_config,
+        mock_get_challenge,
+        mock_handle,
+        mock_track,
+    ):
+        """Normal creation path returns 201 when no exception occurs."""
+        from docker_challenges.api.api import ContainerAPI
+
+        mock_parse.return_value = ("1", None)
+        mock_is_teams.return_value = False
+        mock_get_user.return_value = MagicMock()
+        mock_docker = MagicMock()
+        mock_docker.hostname = "docker.host:2376"
+        mock_docker_config.query.filter_by.return_value.first.return_value = mock_docker
+        mock_challenge = MagicMock()
+        mock_challenge.docker_type = "service"
+        mock_get_challenge.return_value = mock_challenge
+        mock_handle.return_value = ("svc_ok", ["30002/tcp->80"])
+        mock_track.return_value = None
+
+        api = ContainerAPI()
+        result = api.post()
+
+        response, status_code = result
+        assert status_code == 201
+        assert response["success"] is True
+        mock_track.assert_called_once()
