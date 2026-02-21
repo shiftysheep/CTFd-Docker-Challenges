@@ -169,7 +169,13 @@ def _handle_container_creation(
     # Revert container if it exists and is old enough
     if existing:
         if not delete_docker(docker, challenge.type, existing.instance_id):
-            logging.warning("Revert failed for %s, proceeding", existing.instance_id)
+            logging.warning(
+                "Revert failed for %s; Docker resource may be orphaned. "
+                "Removing stale tracker entry so new instance can be tracked.",
+                existing.instance_id,
+            )
+            DockerChallengeTracker.query.filter_by(instance_id=existing.instance_id).delete()
+            db.session.commit()
 
     # Create new container/service
     portsbl = get_unavailable_ports(docker)
