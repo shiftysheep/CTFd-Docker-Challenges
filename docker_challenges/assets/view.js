@@ -104,6 +104,7 @@ function containerStatus(container, challengeId) {
         _destroyed: false,
         _onModalHidden: null,
         copiedIndex: -1,
+        canCopy: !!window.isSecureContext,
 
         async init() {
             await this.pollStatus();
@@ -308,46 +309,12 @@ function containerStatus(container, challengeId) {
 
         copyConnectionUrl(index, port) {
             var self = this;
-            var text = port.connectionUrl;
-
-            function onSuccess() {
+            navigator.clipboard.writeText(port.connectionUrl).then(function () {
                 self.copiedIndex = index;
                 setTimeout(function () {
                     if (self.copiedIndex === index) self.copiedIndex = -1;
                 }, 1500);
-            }
-
-            // Clipboard API requires secure context (HTTPS or localhost)
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard
-                    .writeText(text)
-                    .then(onSuccess)
-                    .catch(function (err) {
-                        console.error('Copy failed:', err);
-                    });
-                return;
-            }
-
-            // Fallback for non-secure contexts (HTTP)
-            var textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.setSelectionRange(0, textarea.value.length);
-            try {
-                if (document.execCommand('copy')) {
-                    onSuccess();
-                } else {
-                    console.warn(
-                        'Copy failed: site is not HTTPS. Select the URL and copy manually.'
-                    );
-                }
-            } catch (err) {
-                console.warn('Copy failed: site is not HTTPS. Select the URL and copy manually.');
-            }
-            document.body.removeChild(textarea);
+            });
         },
     };
 }

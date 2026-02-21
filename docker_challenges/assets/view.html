@@ -52,6 +52,7 @@
                     </template>
                     <span x-text="port.targetLabel" style="color: #6c7086; font-size: 12px"></span>
                     <button
+                        x-show="canCopy"
                         @click="copyConnectionUrl(index, port)"
                         style="
                             margin-left: auto;
