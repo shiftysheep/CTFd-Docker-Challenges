@@ -70,7 +70,7 @@ class TestBuildSecretsList:
         mock_get_secrets.return_value = [
             {"ID": "sec1", "Name": "db_password"},
         ]
-        challenge = self._make_challenge('[{"id": "sec1", "protected": true}]')
+        challenge = self._make_challenge('[{"id": "db_password", "protected": true}]')
 
         result = _build_secrets_list(challenge, self._make_docker())
 
@@ -85,7 +85,7 @@ class TestBuildSecretsList:
         mock_get_secrets.return_value = [
             {"ID": "sec2", "Name": "api_config"},
         ]
-        challenge = self._make_challenge('[{"id": "sec2", "protected": false}]')
+        challenge = self._make_challenge('[{"id": "api_config", "protected": false}]')
 
         result = _build_secrets_list(challenge, self._make_docker())
 
@@ -99,7 +99,7 @@ class TestBuildSecretsList:
             {"ID": "sec2", "Name": "api_config"},
         ]
         challenge = self._make_challenge(
-            '[{"id": "sec1", "protected": true}, {"id": "sec2", "protected": false}]'
+            '[{"id": "db_password", "protected": true}, {"id": "api_config", "protected": false}]'
         )
 
         result = _build_secrets_list(challenge, self._make_docker())
@@ -135,7 +135,7 @@ class TestBuildSecretsList:
         mock_get_secrets.return_value = [
             {"ID": "sec1", "Name": "db_password"},
         ]
-        challenge = self._make_challenge('[{"id": "sec1"}]')
+        challenge = self._make_challenge('[{"id": "db_password"}]')
 
         result = _build_secrets_list(challenge, self._make_docker())
 
@@ -147,9 +147,44 @@ class TestBuildSecretsList:
         mock_get_secrets.return_value = [
             {"ID": "sec1", "Name": "test_secret"},
         ]
-        challenge = self._make_challenge('[{"id": "sec1", "protected": false}]')
+        challenge = self._make_challenge('[{"id": "test_secret", "protected": false}]')
 
         result = _build_secrets_list(challenge, self._make_docker())
 
         assert result[0]["File"]["UID"] == "1"
         assert result[0]["File"]["GID"] == "1"
+
+    @patch("docker_challenges.functions.services.get_secrets")
+    def test_legacy_swarm_id_matches_by_fallback(self, mock_get_secrets):
+        """Old DB entries storing Swarm IDs still match via ID fallback, with a warning logged."""
+        mock_get_secrets.return_value = [
+            {"ID": "abc123swarmid", "Name": "db_password"},
+        ]
+        # Stored value is the Swarm ID (legacy format)
+        challenge = self._make_challenge('[{"id": "abc123swarmid", "protected": false}]')
+
+        with patch("docker_challenges.functions.services.logging") as mock_log:
+            result = _build_secrets_list(challenge, self._make_docker())
+
+        assert len(result) == 1
+        assert result[0]["SecretID"] == "abc123swarmid"
+        assert result[0]["SecretName"] == "db_password"
+        mock_log.warning.assert_called_once()
+        warning_msg = mock_log.warning.call_args[0][0]
+        assert "legacy" in warning_msg.lower() or "swarm id" in warning_msg.lower()
+
+    @patch("docker_challenges.functions.services.get_secrets")
+    def test_missing_secret_logs_warning(self, mock_get_secrets):
+        """A configured secret that doesn't exist in Docker is skipped with a warning."""
+        mock_get_secrets.return_value = [
+            {"ID": "sec1", "Name": "existing_secret"},
+        ]
+        challenge = self._make_challenge('[{"id": "ghost_secret", "protected": true}]')
+
+        with patch("docker_challenges.functions.services.logging") as mock_log:
+            result = _build_secrets_list(challenge, self._make_docker())
+
+        assert result == []
+        mock_log.warning.assert_called_once()
+        warning_msg = mock_log.warning.call_args[0][0]
+        assert "not found" in warning_msg.lower() or "skipping" in warning_msg.lower()

@@ -61,24 +61,42 @@ def _build_secrets_list(challenge: DockerServiceChallenge, docker: DockerConfig)
     secret_configs = _parse_docker_secrets(challenge.docker_secrets)
 
     for config in secret_configs:
-        secret_id = config["id"]
+        secret_id = config["id"]  # Now expected to be a Name (legacy entries may be Swarm IDs)
         permissions = 0o600 if config.get("protected", False) else 0o777
 
+        matched_secret = None
         for secret in all_secrets:
-            if secret_id == secret["ID"]:
-                secrets_list.append(
-                    {
-                        "File": {
-                            "Name": f"/run/secrets/{secret['Name']}",
-                            "UID": "1",
-                            "GID": "1",
-                            "Mode": permissions,
-                        },
-                        "SecretID": secret_id,
-                        "SecretName": secret["Name"],
-                    }
+            if secret_id == secret["Name"]:  # Primary: match by Name
+                matched_secret = secret
+                break
+            if secret_id == secret["ID"]:  # Fallback: match legacy Swarm IDs
+                matched_secret = secret
+                logging.warning(
+                    "Secret '%s' matched by Swarm ID (legacy). "
+                    "Re-save the challenge to use name-based matching.",
+                    secret["Name"],
                 )
                 break
+
+        if matched_secret:
+            secrets_list.append(
+                {
+                    "File": {
+                        "Name": f"/run/secrets/{matched_secret['Name']}",
+                        "UID": "1",
+                        "GID": "1",
+                        "Mode": permissions,
+                    },
+                    "SecretID": matched_secret["ID"],
+                    "SecretName": matched_secret["Name"],
+                }
+            )
+        else:
+            logging.warning(
+                "Secret '%s' not found in Docker Swarm — skipping. "
+                "The secret may have been deleted.",
+                secret_id,
+            )
     return secrets_list
 
 

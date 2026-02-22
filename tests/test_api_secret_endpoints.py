@@ -42,8 +42,8 @@ class TestSecretAPIGet:
         assert result == {
             "success": True,
             "data": [
-                {"name": "my_secret", "id": "sec1"},
-                {"name": "db_pass", "id": "sec2"},
+                {"name": "my_secret", "id": "my_secret"},
+                {"name": "db_pass", "id": "db_pass"},
             ],
             "swarm_mode": True,
         }
@@ -193,7 +193,7 @@ class TestSecretAPIPost:
 
         assert status == 201
         assert result["success"] is True
-        assert result["data"]["id"] == "sec_new_id"
+        assert result["data"]["id"] == "new_secret"
         assert result["data"]["name"] == "new_secret"
 
     @pytest.mark.medium
