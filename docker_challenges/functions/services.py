@@ -149,7 +149,7 @@ def delete_service(docker: DockerConfig, instance_id: str) -> bool:
         True if deletion succeeded or service already gone, False otherwise.
     """
     r = do_request(docker, f"/services/{instance_id}", method="DELETE")
-    if not r:
+    if r is None:
         return False
     if r.status_code == 404:
         return True  # Service already gone — desired state achieved
