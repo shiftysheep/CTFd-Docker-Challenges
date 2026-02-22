@@ -400,7 +400,7 @@ class DockerStatus(Resource):
         return {"success": True, "data": data}
 
 
-@docker_namespace.route("", methods=["POST", "GET"])
+@docker_namespace.route("", methods=["GET"])
 class DockerAPI(Resource):
     """
     This is for creating Docker Challenges. The purpose of this API is to populate the Docker Image Select form
