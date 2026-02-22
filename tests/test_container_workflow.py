@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ============================================================================
 # _handle_container_creation tests
 # ============================================================================
@@ -50,7 +49,7 @@ class TestHandleContainerCreation:
 
         result = _handle_container_creation(mock_docker, mock_challenge, mock_session, False)
 
-        assert result is not None
+        assert isinstance(result, tuple)
         instance_id, ports = result
         assert instance_id == "container_abc123"
         assert ports == ["30002/tcp->80"]
@@ -120,7 +119,7 @@ class TestHandleContainerCreation:
 
         result = _handle_container_creation(mock_docker, mock_challenge, mock_session, False)
 
-        assert result is not None
+        assert isinstance(result, tuple)
         instance_id, ports = result
         assert instance_id == "new_container_id"
         mock_delete_docker.assert_called_once_with(
@@ -220,8 +219,7 @@ class TestHandleContainerCreation:
         result = _handle_container_creation(mock_docker, mock_challenge, mock_session, False)
 
         # Should still proceed with creation despite deletion failure
-        assert result is not None
-        assert result is not False
+        assert isinstance(result, tuple)
         instance_id, ports = result
         assert instance_id == "new_container_id"
         mock_delete_docker.assert_called_once()
@@ -609,3 +607,141 @@ class TestContainerAPIPostTrackerRollback:
         assert status_code == 201
         assert response["success"] is True
         mock_track.assert_called_once()
+
+
+# ============================================================================
+# delete_container 404 handling
+# ============================================================================
+
+
+class TestDeleteContainer:
+    """Tests for delete_container() 404-as-success behavior."""
+
+    @pytest.mark.medium
+    @patch("docker_challenges.functions.containers.do_request")
+    def test_delete_container_returns_true_on_404(self, mock_do_request):
+        """delete_container returns True when Docker returns 404 (already gone)."""
+        from docker_challenges.functions.containers import delete_container
+
+        mock_docker = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_do_request.return_value = mock_response
+
+        result = delete_container(mock_docker, "missing_container_id")
+
+        assert result is True
+
+    @pytest.mark.medium
+    @patch("docker_challenges.functions.containers.do_request")
+    def test_delete_container_returns_true_on_204(self, mock_do_request):
+        """delete_container returns True on normal 204 success."""
+        from docker_challenges.functions.containers import delete_container
+
+        mock_docker = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 204
+        mock_response.ok = True
+        mock_do_request.return_value = mock_response
+
+        result = delete_container(mock_docker, "container_id")
+
+        assert result is True
+
+    @pytest.mark.medium
+    @patch("docker_challenges.functions.containers.do_request")
+    def test_delete_container_returns_false_on_500(self, mock_do_request):
+        """delete_container returns False on Docker 500 error."""
+        from docker_challenges.functions.containers import delete_container
+
+        mock_docker = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.ok = False
+        mock_do_request.return_value = mock_response
+
+        result = delete_container(mock_docker, "container_id")
+
+        assert result is False
+
+    @pytest.mark.medium
+    @patch("docker_challenges.functions.containers.do_request")
+    def test_delete_container_returns_false_when_no_response(self, mock_do_request):
+        """delete_container returns False when do_request returns None (connection failure)."""
+        from docker_challenges.functions.containers import delete_container
+
+        mock_docker = MagicMock()
+        mock_do_request.return_value = None
+
+        result = delete_container(mock_docker, "container_id")
+
+        assert result is False
+
+
+# ============================================================================
+# delete_service 404 handling
+# ============================================================================
+
+
+class TestDeleteService:
+    """Tests for delete_service() 404-as-success behavior."""
+
+    @pytest.mark.medium
+    @patch("docker_challenges.functions.services.do_request")
+    def test_delete_service_returns_true_on_404(self, mock_do_request):
+        """delete_service returns True when Docker returns 404 (already gone)."""
+        from docker_challenges.functions.services import delete_service
+
+        mock_docker = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_do_request.return_value = mock_response
+
+        result = delete_service(mock_docker, "missing_service_id")
+
+        assert result is True
+
+    @pytest.mark.medium
+    @patch("docker_challenges.functions.services.do_request")
+    def test_delete_service_returns_true_on_200(self, mock_do_request):
+        """delete_service returns True on normal 200 success."""
+        from docker_challenges.functions.services import delete_service
+
+        mock_docker = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.ok = True
+        mock_do_request.return_value = mock_response
+
+        result = delete_service(mock_docker, "service_id")
+
+        assert result is True
+
+    @pytest.mark.medium
+    @patch("docker_challenges.functions.services.do_request")
+    def test_delete_service_returns_false_on_500(self, mock_do_request):
+        """delete_service returns False on Docker 500 error."""
+        from docker_challenges.functions.services import delete_service
+
+        mock_docker = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.ok = False
+        mock_do_request.return_value = mock_response
+
+        result = delete_service(mock_docker, "service_id")
+
+        assert result is False
+
+    @pytest.mark.medium
+    @patch("docker_challenges.functions.services.do_request")
+    def test_delete_service_returns_false_when_no_response(self, mock_do_request):
+        """delete_service returns False when do_request returns None (connection failure)."""
+        from docker_challenges.functions.services import delete_service
+
+        mock_docker = MagicMock()
+        mock_do_request.return_value = None
+
+        result = delete_service(mock_docker, "service_id")
+
+        assert result is False

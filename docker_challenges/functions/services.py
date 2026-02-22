@@ -84,7 +84,7 @@ def _build_secrets_list(challenge: DockerServiceChallenge, docker: DockerConfig)
 
 def create_service(
     docker: DockerConfig, challenge_id: int, image: str, team: str, portbl: list
-) -> tuple[str | None, list[dict] | None]:
+) -> tuple[str | None, str | None]:
     """
     Create a Docker Swarm service for a challenge instance.
 
@@ -146,9 +146,11 @@ def delete_service(docker: DockerConfig, instance_id: str) -> bool:
         instance_id: Docker service ID to delete
 
     Returns:
-        True if deletion succeeded, False otherwise.
+        True if deletion succeeded or service already gone, False otherwise.
     """
     r = do_request(docker, f"/services/{instance_id}", method="DELETE")
     if not r:
         return False
+    if r.status_code == 404:
+        return True  # Service already gone — desired state achieved
     return r.ok
