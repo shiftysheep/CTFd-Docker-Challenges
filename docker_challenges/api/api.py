@@ -491,7 +491,7 @@ class SecretAPI(Resource):
         docker = DockerConfig.query.filter_by(id=1).first()
         swarm = is_swarm_mode(docker)
         secrets = get_secrets(docker) if swarm else []
-        data = [{"name": i["Name"], "id": i["ID"]} for i in secrets]
+        data = [{"name": i["Name"], "id": i["Name"]} for i in secrets]
         return {"success": True, "data": data, "swarm_mode": swarm}
 
     @admins_only
@@ -530,7 +530,7 @@ class SecretAPI(Resource):
         username = user.name if user else "Unknown"
         logging.info("Admin '%s' created secret '%s' (ID: %s)", username, secret_name, secret_id)
 
-        return {"success": True, "data": {"id": secret_id, "name": secret_name}}, 201
+        return {"success": True, "data": {"id": secret_name, "name": secret_name}}, 201
 
     @admins_only
     def delete(self, secret_id):
