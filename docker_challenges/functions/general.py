@@ -495,5 +495,11 @@ def cleanup_container_on_solve(
 
     container = get_user_container(user, team, challenge, is_teams=is_teams)
     if container:
-        delete_func(docker, container.instance_id)
-        _Tracker.query.filter_by(instance_id=container.instance_id).delete()
+        if delete_func(docker, container.instance_id):
+            _Tracker.query.filter_by(instance_id=container.instance_id).delete()
+        else:
+            logging.warning(
+                "Failed to delete container %s on solve for challenge %s",
+                container.instance_id,
+                challenge.id,
+            )

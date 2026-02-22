@@ -169,7 +169,13 @@ def _handle_container_creation(
     # Revert container if it exists and is old enough
     if existing:
         if not delete_docker(docker, challenge.type, existing.instance_id):
-            logging.warning("Revert failed for %s, proceeding", existing.instance_id)
+            logging.warning(
+                "Revert failed for %s; Docker resource may be orphaned. "
+                "Removing stale tracker entry so new instance can be tracked.",
+                existing.instance_id,
+            )
+            DockerChallengeTracker.query.filter_by(instance_id=existing.instance_id).delete()
+            db.session.commit()
 
     # Create new container/service
     portsbl = get_unavailable_ports(docker)
@@ -335,7 +341,19 @@ class ContainerAPI(Resource):
             return {"success": False, "error": error_msg}, 403 if result is None else 500
 
         instance_id, ports = result
-        _track_container(docker, challenge, session, is_teams, instance_id, ports)
+        try:
+            _track_container(docker, challenge, session, is_teams, instance_id, ports)
+        except Exception:
+            logging.error(
+                "DB commit failed after creating %s instance %s; rolling back Docker resource",
+                challenge.docker_type,
+                instance_id,
+            )
+            if challenge.docker_type == "service":
+                delete_service(docker, instance_id)
+            else:
+                delete_container(docker, instance_id)
+            return {"success": False, "error": "Container creation failed"}, 500
 
         return {
             "success": True,
@@ -382,7 +400,7 @@ class DockerStatus(Resource):
         return {"success": True, "data": data}
 
 
-@docker_namespace.route("", methods=["POST", "GET"])
+@docker_namespace.route("", methods=["GET"])
 class DockerAPI(Resource):
     """
     This is for creating Docker Challenges. The purpose of this API is to populate the Docker Image Select form
