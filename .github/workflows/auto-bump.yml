@@ -1,0 +1,90 @@
+name: Auto Version Bump
+
+# Runs on every merge to master. Skips if the merge was itself a bump commit
+# (prevents infinite loop). Runs cz bump, opens a PR with the result, and
+# auto-merges it. The semver tag is applied to the squash commit on master.
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  auto-bump:
+    name: Bump version
+    runs-on: ubuntu-latest
+    if: "!startsWith(github.event.head_commit.message, 'bump:')"
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install commitizen
+        run: pip install commitizen
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Dry-run to get new version
+        id: check
+        run: |
+          if cz bump --dry-run > /tmp/bump_out 2>&1; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            NEW_VER=$(grep -oP '\d+\.\d+\.\d+$' /tmp/bump_out | tail -1)
+            echo "new_version=$NEW_VER" >> "$GITHUB_OUTPUT"
+            cat /tmp/bump_out
+          else
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "No conventional commits found — skipping bump."
+            cat /tmp/bump_out
+          fi
+
+      - name: Run cz bump
+        if: steps.check.outputs.needed == 'true'
+        run: cz bump
+
+      - name: Push bump branch, open PR, and auto-merge
+        if: steps.check.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.check.outputs.new_version }}"
+          BRANCH="chore/auto-bump-v${VERSION}"
+
+          git checkout -b "$BRANCH"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "bump: version → ${VERSION}" \
+            --body "Automated version bump triggered by merge to master." \
+            --base master \
+            --head "$BRANCH"
+
+          gh pr merge "$BRANCH" --squash --delete-branch
+
+      - name: Tag the squash commit on master
+        if: steps.check.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.check.outputs.new_version }}"
+          MERGE_SHA=$(gh api "repos/${{ github.repository }}/branches/master" --jq '.commit.sha')
+
+          # Create the tag via the GitHub API (avoids push-to-protected-branch)
+          gh api "repos/${{ github.repository }}/git/refs" \
+            --method POST \
+            --field ref="refs/tags/v${VERSION}" \
+            --field sha="$MERGE_SHA"
