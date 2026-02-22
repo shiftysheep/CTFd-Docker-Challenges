@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [unreleased]: https://github.com/shiftysheep/CTFd-Docker-Challenges/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/shiftysheep/CTFd-Docker-Challenges/releases/tag/v1.0.0
 
+## v4.0.2 (2026-02-22)
+
+### Fix
+
+- **docker**: use `r is None` guard instead of `not r` in deletions
+- **docker**: treat 404 as success in container/service deletion
+- **api**: remove undeclared POST method from DockerAPI route (#29)
+- **docker**: use `r is None` guard instead of `not r` in deletions
+- **docker**: treat 404 as success in container/service deletion
+- **api**: remove undeclared POST method from DockerAPI route
+- **lint**: use **all** for explicit re-exports in api/**init**.py
+- **models**: stop running containers on challenge deletion
+- **api**: roll back docker resource on db commit failure
+- **api**: clean stale tracker entry when container revert fails
+- **functions**: gate tracker deletion on delete_func success
+- **frontend**: hide copy button when clipboard API unavailable (HTTP) (#28)
+
 ## v4.0.1 (2026-02-19)
 
 ### Feat
