@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [unreleased]: https://github.com/shiftysheep/CTFd-Docker-Challenges/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/shiftysheep/CTFd-Docker-Challenges/releases/tag/v1.0.0
 
+## v4.0.3 (2026-02-22)
+
+### Fix
+
+- **secrets**: match Docker secrets by name instead of Swarm ID (#33)
+
 ## v4.0.2 (2026-02-22)
 
 ### Fix
