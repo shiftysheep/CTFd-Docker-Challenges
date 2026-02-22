@@ -677,6 +677,28 @@ class TestDeleteContainer:
 
         assert result is False
 
+    @pytest.mark.medium
+    @patch("docker_challenges.functions.containers.do_request")
+    def test_delete_container_returns_true_on_404_with_falsy_response(self, mock_do_request):
+        """delete_container returns True for 404 even when bool(response) is False.
+
+        Regression test: requests.Response.__bool__ returns False for 4xx responses,
+        so `if not r` incorrectly short-circuits before the status_code check.
+        The guard must use `r is None` to distinguish no-response from error-response.
+        """
+        from docker_challenges.functions.containers import delete_container
+
+        mock_docker = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        # Simulate real requests.Response behaviour: bool(response) is False for 4xx
+        type(mock_response).__bool__ = lambda _: False
+        mock_do_request.return_value = mock_response
+
+        result = delete_container(mock_docker, "missing_container_id")
+
+        assert result is True
+
 
 # ============================================================================
 # delete_service 404 handling
@@ -745,3 +767,25 @@ class TestDeleteService:
         result = delete_service(mock_docker, "service_id")
 
         assert result is False
+
+    @pytest.mark.medium
+    @patch("docker_challenges.functions.services.do_request")
+    def test_delete_service_returns_true_on_404_with_falsy_response(self, mock_do_request):
+        """delete_service returns True for 404 even when bool(response) is False.
+
+        Regression test: requests.Response.__bool__ returns False for 4xx responses,
+        so `if not r` incorrectly short-circuits before the status_code check.
+        The guard must use `r is None` to distinguish no-response from error-response.
+        """
+        from docker_challenges.functions.services import delete_service
+
+        mock_docker = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        # Simulate real requests.Response behaviour: bool(response) is False for 4xx
+        type(mock_response).__bool__ = lambda _: False
+        mock_do_request.return_value = mock_response
+
+        result = delete_service(mock_docker, "missing_service_id")
+
+        assert result is True

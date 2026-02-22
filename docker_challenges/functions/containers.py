@@ -127,7 +127,7 @@ def delete_container(docker: DockerConfig, instance_id: str) -> bool:
         True if deletion succeeded or container already gone, False otherwise.
     """
     r = do_request(docker, f"/containers/{instance_id}?force=true", method="DELETE")
-    if not r:
+    if r is None:
         return False
     if r.status_code == 404:
         return True  # Container already gone — desired state achieved
