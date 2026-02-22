@@ -107,6 +107,8 @@ def create_container(
     if not r:
         return None, None
     instance_id = find_existing(docker, container_name) if r.status_code == 409 else r.json()["Id"]
+    if instance_id is None:
+        return None, None
 
     do_request(docker, url=f"/containers/{instance_id}/start", method="POST")
 
@@ -122,9 +124,11 @@ def delete_container(docker: DockerConfig, instance_id: str) -> bool:
         instance_id: Docker container ID to delete
 
     Returns:
-        True if deletion succeeded, False otherwise.
+        True if deletion succeeded or container already gone, False otherwise.
     """
     r = do_request(docker, f"/containers/{instance_id}?force=true", method="DELETE")
-    if not r:
+    if r is None:
         return False
+    if r.status_code == 404:
+        return True  # Container already gone — desired state achieved
     return r.ok

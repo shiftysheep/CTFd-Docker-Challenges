@@ -132,7 +132,7 @@ def _create_docker_instance(
             team=session.name,
             portbl=portsbl,
         )
-        if not instance_id:
+        if not instance_id or data is None:
             return None, None, None
 
         ports_json = json.loads(data)["EndpointSpec"]["Ports"]
@@ -141,7 +141,7 @@ def _create_docker_instance(
         instance_id, data = create_container(
             docker, challenge.docker_image, session.name, portsbl, challenge.exposed_ports
         )
-        if not instance_id:
+        if not instance_id or data is None:
             return None, None, None
         ports_json = json.loads(data)["HostConfig"]["PortBindings"]
         ports = [f"{values[0]['HostPort']}->{target}" for target, values in ports_json.items()]
