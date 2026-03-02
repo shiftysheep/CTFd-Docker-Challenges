@@ -11,11 +11,9 @@ from CTFd.models import (
     Tags,
     db,
 )
-from CTFd.plugins.challenges import BaseChallenge, ChallengeResponse
-from CTFd.plugins.flags import get_flag_class
+from CTFd.plugins.challenges import BaseChallenge
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.uploads import delete_file
-from CTFd.utils.user import get_ip
 from flask import Blueprint
 
 from ..functions.general import cleanup_container_on_solve, resolve_exposed_ports_from_image
@@ -182,40 +180,18 @@ class DockerServiceChallengeType(BaseChallenge):
         db.session.commit()
         return challenge
 
-    @staticmethod
-    def attempt(challenge, request):
-        """
-        This method is used to check whether a given input is right or wrong. It does not make any changes and should
-        return a boolean for correctness and a string to be shown to the user. It is also in charge of parsing the
-        user's input from the request itself.
-
-        :param challenge: The Challenge object from the database
-        :param request: The request the user submitted
-        :return: (boolean, string)
-        """
-
-        data = request.form or request.get_json()
-        logging.debug(request.get_json())
-        logging.debug(data)
-        submission = data["submission"].strip()
-        flags = Flags.query.filter_by(challenge_id=challenge.id).all()
-        for flag in flags:
-            if get_flag_class(flag.type).compare(flag, submission):
-                return ChallengeResponse(status="correct", message="Correct")
-        return ChallengeResponse(status="incorrect", message="Incorrect")
-
-    @staticmethod
-    def solve(user, team, challenge, request):
+    @classmethod
+    def solve(cls, user, team, challenge, request):
         """
         This method is used to insert Solves into the database in order to mark a challenge as solved.
+        Performs docker service cleanup before delegating to the base implementation.
 
+        :param user: The User object from the database
         :param team: The Team object from the database
-        :param chal: The Challenge object from the database
+        :param challenge: The Challenge object from the database
         :param request: The request the user submitted
         :return:
         """
-        data = request.form or request.get_json()
-        submission = data["submission"].strip()
         docker = DockerConfig.query.filter_by(id=1).first()
         try:
             cleanup_container_on_solve(
@@ -224,34 +200,6 @@ class DockerServiceChallengeType(BaseChallenge):
         except Exception as e:
             # Service may have already been deleted or never created
             logging.debug("Failed to delete service on solve: %s", e)
-        solve = Solves(
-            user_id=user.id,
-            team_id=team.id if team else None,
-            challenge_id=challenge.id,
-            ip=get_ip(req=request),
-            provided=submission,
+        super(DockerServiceChallengeType, cls).solve(  # noqa: UP008
+            user=user, team=team, challenge=challenge, request=request
         )
-        db.session.add(solve)
-        db.session.commit()
-
-    @staticmethod
-    def fail(user, team, challenge, request):
-        """
-        This method is used to insert Fails into the database in order to mark an answer incorrect.
-
-        :param team: The Team object from the database
-        :param chal: The Challenge object from the database
-        :param request: The request the user submitted
-        :return:
-        """
-        data = request.form or request.get_json()
-        submission = data["submission"].strip()
-        wrong = Fails(
-            user_id=user.id,
-            team_id=team.id if team else None,
-            challenge_id=challenge.id,
-            ip=get_ip(request),
-            provided=submission,
-        )
-        db.session.add(wrong)
-        db.session.commit()
