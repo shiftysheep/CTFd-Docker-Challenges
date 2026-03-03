@@ -39,6 +39,7 @@
                         <th class="text-left" style="cursor: pointer" data-column="3">
                             Instance ID
                         </th>
+                        <th class="text-left" style="cursor: pointer" data-column="4">Status</th>
                         <th class="text-left">Revoke</th>
                     </tr>
                 </thead>
@@ -56,6 +57,13 @@
                         </td>
                         <td class="text-center" value="{{docker.instance_id | truncate(15)}}">
                             {{docker.instance_id | truncate(15)}}
+                        </td>
+                        <td class="text-center">
+                            {% if docker.healthy %}
+                            <span class="badge bg-success">Running</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Starting</span>
+                            {% endif %}
                         </td>
                         <td class="text-center">
                             <a
