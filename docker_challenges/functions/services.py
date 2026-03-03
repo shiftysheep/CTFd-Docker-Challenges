@@ -100,6 +100,39 @@ def _build_secrets_list(challenge: DockerServiceChallenge, docker: DockerConfig)
     return secrets_list
 
 
+def find_existing_service(docker: DockerConfig, service_name: str) -> tuple[str | None, str | None]:
+    """Find an existing Docker Swarm service by name.
+
+    Used to recover a service ID when creation returns 409 (name conflict),
+    matching the same pattern as find_existing() for containers.
+
+    Returns:
+        Tuple of (service_id, service_data_json) on success, or (None, None) if not found.
+        service_data_json is formatted with EndpointSpec.Ports for port extraction.
+    """
+    r = do_request(docker, f'/services?filters={{"name":["{service_name}"]}}')
+    if not r:
+        return None, None
+
+    try:
+        services = r.json()
+    except Exception:
+        return None, None
+
+    if not isinstance(services, list):
+        return None, None
+
+    for service in services:
+        spec = service.get("Spec", {})
+        if spec.get("Name") == service_name:
+            service_id = service.get("ID")
+            ports = spec.get("EndpointSpec", {}).get("Ports", [])
+            data = json.dumps({"EndpointSpec": {"Ports": ports}})
+            return service_id, data
+
+    return None, None
+
+
 def create_service(
     docker: DockerConfig, challenge_id: int, image: str, team: str, portbl: list
 ) -> tuple[str | None, str | None]:
@@ -145,6 +178,14 @@ def create_service(
     r = do_request(docker, url="/services/create", method="POST", data=data)
     if not r:
         return None, None
+
+    if r.status_code == 409:
+        # Service name conflict — tracker entry may have been lost while the service survived.
+        # Recover the existing service ID (mirrors find_existing() pattern for containers).
+        logging.warning(
+            "Service name conflict for %s — recovering existing service ID", service_name
+        )
+        return find_existing_service(docker, service_name)
 
     instance_id = r.json().get("ID")
     if not instance_id:
