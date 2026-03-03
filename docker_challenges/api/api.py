@@ -439,10 +439,12 @@ class DockerStatus(Resource):
             entry.healthy = True
             data.append(DockerStatus._build_entry(entry, docker, status="running"))
             return True
-        if docker_status == "starting":
+        if docker_status in ("starting", ""):
+            # "starting": healthcheck not yet passed
+            # "": not yet visible in Docker (just created) — treat as starting
             data.append(DockerStatus._build_entry(entry, docker, status="starting"))
             return False
-        # "stopped", "unhealthy", "" (not found), or unknown — clean up dead tracker entry
+        # "stopped", "unhealthy", or unknown explicit state — clean up dead tracker entry
         DockerChallengeTracker.query.filter_by(id=entry.id).delete()
         return True
 

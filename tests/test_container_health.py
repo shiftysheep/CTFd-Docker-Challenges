@@ -100,6 +100,20 @@ def test_fetch_container_states_exited_container(mock_docker_config):
 
 @pytest.mark.medium
 @responses.activate
+def test_fetch_container_states_created_container_is_starting(mock_docker_config):
+    """Container in 'created' state (just started) maps to 'starting', not 'stopped'."""
+    responses.add(
+        responses.GET,
+        "http://localhost:2375/containers/json?all=1",
+        json=[{"Id": "abc123", "State": "created", "Status": "Created"}],
+        status=200,
+    )
+    result = _fetch_container_states(mock_docker_config)
+    assert result == {"abc123": "starting"}
+
+
+@pytest.mark.medium
+@responses.activate
 def test_fetch_container_states_multiple_containers(mock_docker_config):
     """Multiple containers are all correctly mapped."""
     responses.add(
@@ -480,7 +494,7 @@ class TestDockerStatusHealthGate:
         mock_tracker.query.filter_by.return_value.__iter__ = MagicMock(return_value=iter([entry]))
 
         mock_is_service.return_value = False
-        mock_container_states.return_value = {}  # Container not found
+        mock_container_states.return_value = {"cont_dead": "stopped"}
         mock_service_states.return_value = {}
 
         api = DockerStatus()
@@ -493,6 +507,52 @@ class TestDockerStatusHealthGate:
         mock_tracker.query.filter_by.assert_called_with(id=entry.id)
         mock_tracker.query.filter_by.return_value.delete.assert_called_once()
         mock_db.session.commit.assert_called_once()
+
+    @pytest.mark.medium
+    @patch("docker_challenges.api.api.db")
+    @patch("docker_challenges.api.api.get_service_states")
+    @patch("docker_challenges.api.api.get_container_states")
+    @patch("docker_challenges.api.api._is_service_challenge")
+    @patch("docker_challenges.api.api.DockerChallengeTracker")
+    @patch("docker_challenges.api.api.DockerConfig")
+    @patch("docker_challenges.api.api.is_teams_mode")
+    @patch("docker_challenges.api.api.get_current_user")
+    def test_not_found_in_states_shows_starting(
+        self,
+        mock_get_user,
+        mock_is_teams,
+        mock_config,
+        mock_tracker,
+        mock_is_service,
+        mock_container_states,
+        mock_service_states,
+        mock_db,
+    ):
+        """Container not in states dict (just created) shows as 'starting', not deleted."""
+        from docker_challenges.api.api import DockerStatus
+
+        mock_is_teams.return_value = False
+        mock_get_user.return_value = MagicMock(id="1")
+        mock_docker = MagicMock()
+        mock_docker.hostname = "docker.host:2376"
+        mock_config.query.filter_by.return_value.first.return_value = mock_docker
+
+        entry = self._make_tracker_entry("cont_new", healthy=False)
+        mock_tracker.query.filter_by.return_value.__iter__ = MagicMock(return_value=iter([entry]))
+
+        mock_is_service.return_value = False
+        mock_container_states.return_value = {}  # Not yet visible in Docker
+        mock_service_states.return_value = {}
+
+        api = DockerStatus()
+        result = api.get()
+
+        assert result["success"] is True
+        assert len(result["data"]) == 1
+        assert result["data"][0]["status"] == "starting"
+        assert "ports" not in result["data"][0]
+        # Entry should NOT be deleted
+        mock_tracker.query.filter_by.return_value.delete.assert_not_called()
 
     @pytest.mark.medium
     @patch("docker_challenges.api.api.db")

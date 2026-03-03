@@ -530,8 +530,11 @@ def _fetch_container_states(docker: DockerConfig) -> dict[str, str]:
         state = container.get("State", "")
         status = container.get("Status", "")
 
-        if state != "running":
+        if state in ("exited", "dead", "removing", "paused"):
             result[container_id] = "stopped"
+        elif state != "running":
+            # "created", "restarting", or unknown — transient startup state
+            result[container_id] = "starting"
         elif "(unhealthy)" in status:
             result[container_id] = "unhealthy"
         elif "(health: starting)" in status:
