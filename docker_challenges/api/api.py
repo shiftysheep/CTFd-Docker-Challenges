@@ -18,9 +18,11 @@ from ..functions.containers import create_container, delete_container
 from ..functions.general import (
     create_secret,
     delete_secret,
+    get_container_states,
     get_repositories,
     get_required_ports,
     get_secrets,
+    get_service_states,
     get_unavailable_ports,
     is_swarm_mode,
 )
@@ -310,6 +312,7 @@ def _track_container(
         instance_id=instance_id,
         ports=",".join(ports),
         host=str(docker.hostname).split(":")[0],
+        healthy=False,
     )
     db.session.add(entry)
     db.session.commit()
@@ -365,39 +368,106 @@ class ContainerAPI(Resource):
         }, 201
 
 
+def _get_tracker_for_session() -> list:
+    """Return tracker entries for the current authenticated session."""
+    if is_teams_mode():
+        session = get_current_team()
+        return list(DockerChallengeTracker.query.filter_by(team_id=session.id))
+    session = get_current_user()
+    return list(DockerChallengeTracker.query.filter_by(user_id=session.id))
+
+
+def _is_service_challenge(challenge_id: int) -> bool:
+    """Check if a challenge ID belongs to a DockerServiceChallenge."""
+    challenge = _get_challenge_by_id(challenge_id)
+    return challenge is not None and challenge.type == "docker_service"
+
+
 @active_docker_namespace.route("", methods=["POST", "GET"])
 class DockerStatus(Resource):
     """
     The Purpose of this API is to retrieve a public JSON string of all docker containers
     in use by the current team/user.
+
+    Entries with healthy=False are checked against Docker to determine if the
+    container/service has started yet. Connection info is only returned once healthy.
     """
 
     @authed_only
     def get(self):
         docker = DockerConfig.query.filter_by(id=1).first()
-        if is_teams_mode():
-            session = get_current_team()
-            tracker = DockerChallengeTracker.query.filter_by(team_id=session.id)
-        else:
-            session = get_current_user()
-            tracker = DockerChallengeTracker.query.filter_by(user_id=session.id)
+        tracker = _get_tracker_for_session()
+
+        # State dicts are cached (5s TTL) — cheap to call unconditionally
+        container_states = get_container_states(docker)
+        service_states = get_service_states(docker)
+
+        db_dirty = False
         data = []
-        for tracker_entry in tracker:
-            data.append(
-                {
-                    "id": tracker_entry.id,
-                    "team_id": tracker_entry.team_id,
-                    "user_id": tracker_entry.user_id,
-                    "challenge_id": tracker_entry.challenge_id,
-                    "docker_image": tracker_entry.docker_image,
-                    "timestamp": tracker_entry.timestamp,
-                    "revert_time": tracker_entry.revert_time,
-                    "instance_id": tracker_entry.instance_id,
-                    "ports": tracker_entry.ports.split(","),
-                    "host": str(docker.hostname).split(":")[0],
-                }
-            )
+
+        for entry in tracker:
+            if entry.healthy:
+                data.append(self._build_entry(entry, docker, status="running"))
+            else:
+                if self._process_unhealthy_entry(
+                    entry, docker, container_states, service_states, data
+                ):
+                    db_dirty = True
+
+        if db_dirty:
+            db.session.commit()
+
         return {"success": True, "data": data}
+
+    @staticmethod
+    def _process_unhealthy_entry(
+        entry: DockerChallengeTracker,
+        docker: DockerConfig,
+        container_states: dict[str, str],
+        service_states: dict[str, str],
+        data: list,
+    ) -> bool:
+        """Check Docker state for an unhealthy tracker entry and update accordingly.
+
+        Returns True if the database was modified (healthy flag set or entry deleted).
+        """
+        is_service = _is_service_challenge(entry.challenge_id)
+        state_dict = service_states if is_service else container_states
+        docker_status = state_dict.get(entry.instance_id, "")
+
+        if docker_status == "running":
+            entry.healthy = True
+            data.append(DockerStatus._build_entry(entry, docker, status="running"))
+            return True
+        if docker_status == "starting":
+            data.append(DockerStatus._build_entry(entry, docker, status="starting"))
+            return False
+        # "stopped", "unhealthy", "" (not found), or unknown — clean up dead tracker entry
+        DockerChallengeTracker.query.filter_by(id=entry.id).delete()
+        return True
+
+    @staticmethod
+    def _build_entry(entry: DockerChallengeTracker, docker: DockerConfig, status: str) -> dict:
+        """Build a response dict for a tracker entry.
+
+        When status is 'starting', ports and host are omitted to prevent
+        showing connection info for a service not yet accepting connections.
+        """
+        base = {
+            "id": entry.id,
+            "team_id": entry.team_id,
+            "user_id": entry.user_id,
+            "challenge_id": entry.challenge_id,
+            "docker_image": entry.docker_image,
+            "timestamp": entry.timestamp,
+            "revert_time": entry.revert_time,
+            "instance_id": entry.instance_id,
+            "status": status,
+        }
+        if status == "running":
+            base["ports"] = entry.ports.split(",")
+            base["host"] = str(docker.hostname).split(":")[0]
+        return base
 
 
 @docker_namespace.route("", methods=["GET"])

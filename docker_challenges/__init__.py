@@ -282,8 +282,35 @@ def define_docker_secrets(app):
     app.register_blueprint(admin_docker_secrets)
 
 
+def _ensure_healthy_column(app) -> None:
+    """Add the `healthy` column to docker_challenge_tracker if it doesn't exist.
+
+    Handles upgrades from plugin versions that predate the health-check feature.
+    Existing rows get server_default=1 (healthy=True) so running containers
+    remain visible after upgrade.
+    """
+    try:
+        from sqlalchemy import inspect, text
+
+        inspector = inspect(app.db.engine)
+        columns = [col["name"] for col in inspector.get_columns("docker_challenge_tracker")]
+        if "healthy" not in columns:
+            with app.db.engine.connect() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE docker_challenge_tracker "
+                        "ADD COLUMN healthy BOOLEAN NOT NULL DEFAULT 1"
+                    )
+                )
+                conn.commit()
+            logging.info("docker_challenge_tracker: added 'healthy' column")
+    except Exception as err:
+        logging.warning("Could not ensure 'healthy' column on docker_challenge_tracker: %s", err)
+
+
 def load(app):
     app.db.create_all()
+    _ensure_healthy_column(app)
 
     CHALLENGE_CLASSES["docker"] = DockerChallengeType
     CHALLENGE_CLASSES["docker_service"] = DockerServiceChallengeType

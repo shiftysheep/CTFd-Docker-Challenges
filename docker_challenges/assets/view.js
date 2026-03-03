@@ -4,6 +4,7 @@
 var CONTAINER_POLL_INTERVAL_MS = 30000; // 30 seconds (base interval)
 var CONTAINER_POLL_MAX_INTERVAL_MS = 300000; // 5 minutes (max backoff)
 var CONTAINER_POLL_BACKOFF_MULTIPLIER = 2; // Double interval on each failure
+var CONTAINER_STARTUP_POLL_INTERVAL_MS = 3000; // 3 seconds — rapid poll during startup
 var MS_PER_SECOND = 1000;
 
 var HTTP_PORTS = [80, 8080, 3000, 5000, 8000, 8888, 9000];
@@ -92,6 +93,7 @@ CTFd._internal.challenge.submit = function (preview) {
 function containerStatus(container, challengeId) {
     return {
         containerRunning: false,
+        containerStarting: false,
         host: '',
         ports: '',
         revertTime: null,
@@ -179,18 +181,31 @@ function containerStatus(container, challengeId) {
                     );
 
                     if (containerInfo) {
-                        this.containerRunning = true;
-                        this.host = containerInfo.host;
-                        this.ports = String(containerInfo.ports);
-                        this.revertTime = parseInt(containerInfo.revert_time) * MS_PER_SECOND; // Convert to milliseconds
-                        this.updateCountdown();
+                        if (containerInfo.status === 'running') {
+                            this.containerStarting = false;
+                            this.containerRunning = true;
+                            this.host = containerInfo.host;
+                            this.ports = String(containerInfo.ports);
+                            this.revertTime = parseInt(containerInfo.revert_time) * MS_PER_SECOND;
+                            this.updateCountdown();
+                            this.resetPollInterval();
+                        } else {
+                            // status === 'starting': rapid poll, no connection info yet
+                            this.containerStarting = true;
+                            this.containerRunning = false;
+                            this.currentPollInterval = CONTAINER_STARTUP_POLL_INTERVAL_MS;
+                        }
                     } else {
                         this.containerRunning = false;
+                        this.containerStarting = false;
+                        this.resetPollInterval();
                     }
+                } else {
+                    // No containers in response
+                    this.containerRunning = false;
+                    this.containerStarting = false;
+                    this.resetPollInterval();
                 }
-
-                // Success - reset backoff interval
-                this.resetPollInterval();
             } catch (error) {
                 console.error('Error polling status:', error);
 
@@ -263,6 +278,9 @@ function containerStatus(container, challengeId) {
                     throw new Error(result.error || 'Container creation failed');
                 }
 
+                // Show spinner immediately — container created but not yet healthy
+                this.containerStarting = true;
+                this.currentPollInterval = CONTAINER_STARTUP_POLL_INTERVAL_MS;
                 await this.pollStatus();
             } catch (error) {
                 ezal({
