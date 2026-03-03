@@ -176,7 +176,7 @@ def create_service(
 
     # Create service and handle response
     r = do_request(docker, url="/services/create", method="POST", data=data)
-    if not r:
+    if r is None:
         return None, None
 
     if r.status_code == 409:
