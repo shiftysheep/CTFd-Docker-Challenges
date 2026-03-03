@@ -116,7 +116,18 @@ def register_plugin_assets_directory(*args, **kwargs):
 # --- CTFd Plugins ---
 class BaseChallenge:
     """Stub for CTFd.plugins.challenges.BaseChallenge."""
-    pass
+
+    @classmethod
+    def attempt(cls, challenge, request):
+        pass
+
+    @classmethod
+    def solve(cls, user, team, challenge, request):
+        pass
+
+    @classmethod
+    def fail(cls, user, team, challenge, request):
+        pass
 
 
 class ChallengeResponse:
