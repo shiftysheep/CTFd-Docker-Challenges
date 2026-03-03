@@ -50,6 +50,11 @@ class _DB:
     ForeignKey = lambda self=None, *a, **kw: None
     session = MagicMock()
 
+    @staticmethod
+    def text(value):
+        """Stub for db.text() used in server_default."""
+        return value
+
 
 db = _DB()
 

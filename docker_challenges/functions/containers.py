@@ -104,7 +104,7 @@ def create_container(
         method="POST",
         data=data,
     )
-    if not r:
+    if r is None:
         return None, None
     instance_id = find_existing(docker, container_name) if r.status_code == 409 else r.json()["Id"]
     if instance_id is None:

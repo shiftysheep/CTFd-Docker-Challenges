@@ -4,8 +4,9 @@ import base64
 import json
 import logging
 import random
+import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 import requests
 from requests import Response
@@ -469,6 +470,137 @@ def get_user_container(
         return query.filter_by(team_id=team.id).first()
     else:
         return query.filter_by(user_id=user.id).first()
+
+
+class _CachedDockerState:
+    """Cache Docker state for a short TTL to batch concurrent status polls.
+
+    Prevents redundant Docker API calls when multiple users poll simultaneously.
+    At most 2 Docker API calls per TTL window regardless of user count.
+    """
+
+    TTL_SECONDS = 5
+    _container_states: ClassVar[dict[str, str]] = {}
+    _service_states: ClassVar[dict[str, str]] = {}
+    _container_ts: float = 0.0
+    _service_ts: float = 0.0
+
+    @classmethod
+    def get_container_states(cls, docker: DockerConfig) -> dict[str, str]:
+        """Return cached container states, fetching fresh if cache is stale."""
+        now = time.monotonic()
+        if now - cls._container_ts >= cls.TTL_SECONDS:
+            cls._container_states = _fetch_container_states(docker)
+            cls._container_ts = now
+        return cls._container_states
+
+    @classmethod
+    def get_service_states(cls, docker: DockerConfig) -> dict[str, str]:
+        """Return cached service states, fetching fresh if cache is stale."""
+        now = time.monotonic()
+        if now - cls._service_ts >= cls.TTL_SECONDS:
+            cls._service_states = _fetch_service_states(docker)
+            cls._service_ts = now
+        return cls._service_states
+
+
+def _fetch_container_states(docker: DockerConfig) -> dict[str, str]:
+    """Fetch all container states in a single Docker API call.
+
+    Returns:
+        Dict mapping container ID (full) to health status string:
+        "running", "starting", "unhealthy", or "stopped".
+        Returns empty dict on request failure.
+    """
+    r = do_request(docker, "/containers/json?all=1")
+    if not r:
+        return {}
+
+    try:
+        containers = r.json()
+    except Exception:
+        return {}
+
+    result: dict[str, str] = {}
+    for container in containers:
+        container_id = container.get("Id", "")
+        if not container_id:
+            continue
+
+        state = container.get("State", "")
+        status = container.get("Status", "")
+
+        if state in ("exited", "dead", "removing", "paused"):
+            result[container_id] = "stopped"
+        elif state != "running":
+            # "created", "restarting", or unknown — transient startup state
+            result[container_id] = "starting"
+        elif "(unhealthy)" in status:
+            result[container_id] = "unhealthy"
+        elif "(health: starting)" in status:
+            result[container_id] = "starting"
+        else:
+            # "running", "running (healthy)", or no health info → ready
+            result[container_id] = "running"
+
+    return result
+
+
+def _fetch_service_states(docker: DockerConfig) -> dict[str, str]:
+    """Fetch all service states in a single Docker API call via /tasks.
+
+    Returns:
+        Dict mapping service ID to health status string: "running" or "starting".
+        Returns empty dict on request failure or non-swarm mode.
+    """
+    r = do_request(docker, "/tasks")
+    if not r:
+        return {}
+
+    try:
+        tasks = r.json()
+    except Exception:
+        return {}
+
+    if isinstance(tasks, dict):
+        # Error response (e.g., not a swarm manager)
+        return {}
+
+    # Group tasks by service and find the best state per service
+    service_states: dict[str, str] = {}
+    for task in tasks:
+        service_id = task.get("ServiceID", "")
+        if not service_id:
+            continue
+
+        task_status = task.get("Status", {})
+        task_state = task_status.get("State", "")
+
+        if task_state == "running":
+            service_states[service_id] = "running"
+        elif service_id not in service_states:
+            # Any non-running state maps to "starting" unless we already have "running"
+            service_states[service_id] = "starting"
+
+    return service_states
+
+
+def get_container_states(docker: DockerConfig) -> dict[str, str]:
+    """Get health states for all containers, with short-TTL caching.
+
+    Returns:
+        Dict mapping container ID to status: "running", "starting", "unhealthy", "stopped".
+    """
+    return _CachedDockerState.get_container_states(docker)
+
+
+def get_service_states(docker: DockerConfig) -> dict[str, str]:
+    """Get health states for all services, with short-TTL caching.
+
+    Returns:
+        Dict mapping service ID to status: "running" or "starting".
+    """
+    return _CachedDockerState.get_service_states(docker)
 
 
 def cleanup_container_on_solve(

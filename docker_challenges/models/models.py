@@ -35,6 +35,9 @@ class DockerChallengeTracker(db.Model):
     instance_id = db.Column("instance_id", db.String(128), index=True)
     ports = db.Column("ports", db.String(128), index=True)
     host = db.Column("host", db.String(128), index=True)
+    healthy = db.Column(
+        "healthy", db.Boolean, default=False, server_default=db.text("1"), index=True
+    )
 
 
 class DockerConfigForm(BaseForm):
